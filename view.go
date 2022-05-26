@@ -23,43 +23,23 @@ type ModeCommand struct {
 }
 
 type View struct {
-	commandChan     chan string
-	keyEventChan    chan ModeCommand
-	fileChan    	chan File
-	sourceFilesChan chan []string
-	masterView      *tview.Flex
-	textView        *tview.TextView
+	commandChan  chan string
+	keyEventChan chan ModeCommand
+	fileChan     chan File
+	masterView   *tview.Flex
+	textView     *tview.TextView
 
 	cmdLine         *tview.InputField
-	lineSuggestions map [LineCommand] []string
+	lineSuggestions map[LineCommand][]string
 
-	navState        *Nav
+	navState *Nav
 }
-
-var lineCommandMap = map[string]LineCommand{
-	"q" : Quit,
-	"quit" : Quit,
-
-	"c" : DContinue,
-	"n" : DNext,
-	"s" : DStep,
-}
-
-type LineCommand int
-const (
-	OpenFile LineCommand = iota
-	Quit
-
-	DContinue
-	DNext
-	DStep
-)
 
 func parseCommand(input string) (LineCommand, []string) {
 	args := strings.Fields(input)
 	command := args[0]
 	cargs := args[1:]
-	return lineCommandMap[command], cargs
+	return StringToLineCommand(command), cargs
 }
 
 type CommandHandler func(LineCommand, []string, *View, *tview.Application)
@@ -71,6 +51,10 @@ func (view *View) keyEventLoop(app *tview.Application, runCommand CommandHandler
 			if modeCommand.rune == 58 {
 				view.cmdLine.SetLabel(":")
 				app.SetFocus(view.cmdLine)
+				break
+			}
+			if modeCommand.rune == 105 {
+				app.SetFocus(view.textView)
 			}
 		case Insert:
 			if modeCommand.key == tcell.KeyEscape {
@@ -86,16 +70,19 @@ func (view *View) keyEventLoop(app *tview.Application, runCommand CommandHandler
 				view.cmdLine.SetText("")
 				app.SetFocus(view.masterView)
 				command, args := parseCommand(linetext)
-				runCommand(command,args,view,app)
+				runCommand(command, args, view, app)
 			}
 		}
 	}
 }
 
-func (view *View)newFileLoop() {
+func (view *View) newFileLoop() {
+	view.navState.fileCache = make(map[string]File)
 	for newFile := range view.fileChan {
+
 		// Update cache
 		view.navState.fileCache[newFile.name] = newFile
+		view.textView.SetText(newFile.content)
 	}
 }
 
@@ -104,14 +91,16 @@ func CreateView(app *tview.Application, nav *Nav) View {
 	var view = View{
 		commandChan:  make(chan string, 1024),
 		keyEventChan: make(chan ModeCommand, 1024),
-		fileChan: make(chan File),
-		navState: nav,
+		fileChan:     make(chan File, 1024),
+		navState:     nav,
 	}
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
 	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		view.keyEventChan <- ModeCommand{key: event.Key(), rune: event.Rune(), mode: Normal}
-		return event
+		return event // TODO: this propagates down and causes issues
+		// Can't disable propagation either
+		// Should just direct keyboard events altogether elsewhere when in normal mode
 	})
 
 	textView := tview.
@@ -121,6 +110,10 @@ func CreateView(app *tview.Application, nav *Nav) View {
 		SetChangedFunc(func() {
 			app.Draw()
 		})
+	textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		view.keyEventChan <- ModeCommand{key: event.Key(), rune: event.Rune(), mode: Insert}
+		return event
+	})
 	fmt.Fprintf(textView, "%s ", "")
 	textView.SetBackgroundColor(tcell.ColorDefault)
 
@@ -134,10 +127,7 @@ func CreateView(app *tview.Application, nav *Nav) View {
 	commandLine.SetFieldBackgroundColor(tcell.ColorDefault)
 
 	flex.AddItem(
-		tview.NewBox().
-			SetBackgroundColor(tcell.ColorDefault).
-			SetBorder(true).
-			SetTitle(" current_file.go "), 0, 1, false)
+		textView, 0, 1, false)
 	flex.AddItem(commandLine, 1, 1, false)
 
 	app.SetRoot(flex, true).SetFocus(flex)
@@ -145,6 +135,8 @@ func CreateView(app *tview.Application, nav *Nav) View {
 	view.masterView = flex
 	view.textView = textView
 	view.cmdLine = commandLine
+
+	go view.newFileLoop()
 
 	return view
 }

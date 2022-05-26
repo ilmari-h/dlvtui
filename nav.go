@@ -8,24 +8,25 @@ type File struct {
 
 type BreakPoint struct {
 	filename string
-	line int
+	line     int
 }
 
 // Represents state of navigation within the project directory and the debugger.
 type Nav struct {
 
 	// directory
+	sourceFiles []string
 	projectPath string
 	currentFile File
 	currentLine map[string]int
 	fileCache   map[string]File
 
 	// debugger
-	locals      []string
-	breakpoints map[string][]int
+	locals            []string
+	breakpoints       map[string][]int
 	currentBreakpoint BreakPoint
-	goroutines  []string
-	stack []string
+	goroutines        []string
+	stack             []string
 }
 
 // Load saved session
