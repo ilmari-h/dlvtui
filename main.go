@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -11,20 +12,21 @@ import (
 	"github.com/rivo/tview"
 )
 
-func loadFile(path string, fileChan chan File) {
+func loadFile(path string, fileChan chan *File) {
 	f, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Printf("Error loading file %s:\n%s\n", path, err)
 		return
 	}
-
+    lineSep := []byte{'\n'}
 	file := File{
 		name:        path,
 		content:     string(f),
 		breakpoints: nil,
+		lineCount:  bytes.Count(f,lineSep),
 	}
 	log.Printf("Loaded file %s \n", path)
-	fileChan <- file
+	fileChan <- &file
 }
 
 func executeCommand(command LineCommand, args []string, view *View, app *tview.Application) {
@@ -67,12 +69,11 @@ func main() {
 	flag.Parse()
 
 	app := tview.NewApplication()
-	nav := Nav{projectPath: "."}
+	nav := NewNav(".")
 
-	view := CreateView(app, &nav)
+	CreateView(app, &nav, executeCommand)
 
 	go getFileList(".", nav.sourceFiles)
-	go view.keyEventLoop(app, executeCommand)
 
 	if err := app.Run(); err != nil {
 		panic(err)
