@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
+	"dlvtui/ui"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -18,19 +18,18 @@ const (
 )
 
 type KeyPress struct {
-	mode Mode
+	mode  Mode
 	event *tcell.EventKey
 }
 
 type View struct {
-	commandChan  chan string
-	keyHandler   KeyHandler
-	currentMode  Mode
+	commandChan chan string
+	keyHandler  KeyHandler
+	currentMode Mode
 
-	fileChan     chan *File
-	masterView   *tview.Flex
-	textView     *tview.TextView
-	textViewGutter     *tview.TextView
+	fileChan       chan *File
+	masterView     *tview.Flex
+	textView       *ui.PerfTextView
 
 	cmdLine         *tview.InputField
 	lineSuggestions map[LineCommand][]string
@@ -48,13 +47,13 @@ func parseCommand(input string) (LineCommand, []string) {
 type CommandHandler func(LineCommand, []string, *View, *tview.Application)
 
 type KeyHandler struct {
-	app *tview.Application
-	view *View
+	app             *tview.Application
+	view            *View
 	commandFunction CommandHandler
-	prevKey *tcell.EventKey
+	prevKey         *tcell.EventKey
 }
 
-func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey{
+func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 	view := keyHandler.view
 	runCommand := keyHandler.commandFunction
 	app := keyHandler.app
@@ -74,7 +73,7 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey{
 		}
 		if rune == 'i' {
 			view.toTextMode()
-			break;
+			break
 		}
 	case Text:
 		if rune == ':' {
@@ -99,12 +98,12 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey{
 		}
 		if key == tcell.KeyEscape {
 			view.toNormalMode()
-			break;
+			break
 		}
 	case Cmd:
 		if key == tcell.KeyEscape {
 			view.toNormalMode()
-			break;
+			break
 		}
 		if key == tcell.KeyEnter {
 			linetext := view.cmdLine.GetText()
@@ -123,14 +122,10 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey{
 func (view *View) newFileLoop() {
 	for newFile := range view.fileChan {
 		lineNumbers := ""
-		for i := 1 ; i <= newFile.lineCount + 1 ; i++ {
-			lineNumbers += fmt.Sprintf(`["%d"] %3d [""]`,i,i)
-		}
-
 		view.navState.EnterNewFile(newFile)
-		view.textView.SetText(newFile.content)
+		view.textView.SetTextP(newFile.content, newFile.lineIndices)
 		view.textView.ScrollToBeginning()
-		view.textViewGutter.SetText(lineNumbers)
+		view.textView.GetGutterColumn().SetText(lineNumbers)
 	}
 }
 
@@ -157,13 +152,16 @@ func (view *View) toTextMode() {
 // Text navigation
 
 func (view *View) scrollTo(line int) {
-	if line < 0 || line > view.navState.currentFile.lineCount  {
+	// TODO: this is very very slow with files over ~500 lines. Most likely due to highlighting using text search.
+	// Set text again as batch.
+	// use max lines to limit to size of screen.
+	// To scroll back, only option is setting the complete view again with former text, probably to size of screen.
+	// might be more efficient to use .BetchWriter to manually scroll and load more text?
+	if line < 0 || line >= view.navState.currentFile.lineCount {
 		return
 	}
 	view.textView.Highlight("3")
-	view.textView.ScrollTo(line,0)
-	view.textViewGutter.ScrollTo(line,0)
-	view.textViewGutter.Highlight(strconv.Itoa(line + 1))
+	view.textView.ScrollTo(line)
 	view.navState.SetLine(line)
 }
 
@@ -182,66 +180,65 @@ func (view *View) scrollToTop() {
 }
 
 func (view *View) scrollToBottom() {
-	line := view.navState.currentFile.lineCount
+	line := view.navState.currentFile.lineCount - 1
 	view.scrollTo(line)
 }
 
 func CreateView(app *tview.Application, nav *Nav, commandHandler CommandHandler) View {
 
 	var view = View{
-		commandChan:  make(chan string, 1024),
-		fileChan:     make(chan *File, 1024),
-		navState:     nav,
-		currentMode:  Normal,
+		commandChan: make(chan string, 1024),
+		fileChan:    make(chan *File, 1024),
+		navState:    nav,
+		currentMode: Normal,
 	}
 
-	view.keyHandler = KeyHandler{ app: app, view: &view, commandFunction: commandHandler }
+	view.keyHandler = KeyHandler{app: app, view: &view, commandFunction: commandHandler}
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
 	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		return view.keyHandler.handleKeyEvent(KeyPress{event: event, mode: view.currentMode} )
+		return view.keyHandler.handleKeyEvent(KeyPress{event: event, mode: view.currentMode})
 	})
 
-	textView := tview.
-		NewTextView().
+	view.textView = ui.NewPerfTextView()
+	view.textView.
 		SetRegions(true).
 		SetDynamicColors(true).
 		SetChangedFunc(func() {
 			app.Draw()
 		})
-	textViewGutter := tview.
-		NewTextView().
+	view.textView.SetGutterColumn( ui.NewGutterColumn() )
+	view.textView.GetGutterColumn().
 		SetRegions(true).
 		SetDynamicColors(true).
 		SetChangedFunc(func() {
 			app.Draw()
 		})
-	fmt.Fprintf(textView, "%s ", "")
-	textView.SetBackgroundColor(tcell.ColorDefault)
-	textView.SetWrap(false)
+
+	fmt.Fprintf(view.textView, "%s ", "")
+	view.textView.SetBackgroundColor(tcell.ColorDefault)
+	view.textView.SetWrap(false)
 
 	commandLine := tview.NewInputField().
 		SetLabel("").
 		SetFieldWidth(0).
 		SetDoneFunc(func(key tcell.Key) {
 			event := tcell.NewEventKey(key, 0, tcell.ModNone)
-			view.keyHandler.handleKeyEvent( KeyPress{event: event, mode: Cmd} )
+			view.keyHandler.handleKeyEvent(KeyPress{event: event, mode: Cmd})
 		})
 	commandLine.SetBackgroundColor(tcell.ColorDefault)
 	commandLine.SetFieldBackgroundColor(tcell.ColorDefault)
 
 	flex.AddItem(
 		tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem( textViewGutter, 5, 1, false).
-			AddItem( textView, 0, 1, false),
-	 0, 1, false,)
+			AddItem(view.textView.GetGutterColumn(), 5, 1, false).
+			AddItem(view.textView, 0, 1, false),
+		0, 1, false)
 	flex.AddItem(commandLine, 1, 1, false)
 
 	app.SetRoot(flex, true).SetFocus(flex)
 
 	view.masterView = flex
-	view.textView = textView
-	view.textViewGutter = textViewGutter
 	view.cmdLine = commandLine
 
 	go view.newFileLoop()

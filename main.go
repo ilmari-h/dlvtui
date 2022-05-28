@@ -2,9 +2,8 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
-	"io/ioutil"
+	"os"
 	"log"
 	"os/exec"
 	"strings"
@@ -12,18 +11,30 @@ import (
 	"github.com/rivo/tview"
 )
 
+// Read file from disk.
 func loadFile(path string, fileChan chan *File) {
-	f, err := ioutil.ReadFile(path)
+	f, err := os.Open(path)
+	defer f.Close()
 	if err != nil {
 		log.Printf("Error loading file %s:\n%s\n", path, err)
 		return
 	}
-    lineSep := []byte{'\n'}
+	scanner := bufio.NewScanner(f)
+	buf := ""
+	lineIndex := 0
+	lineIndices := []int{0}
+	for scanner.Scan() {
+		line := scanner.Text()
+		buf += line + "\n"
+		lineIndex += len(line) + 1
+		lineIndices = append(lineIndices, lineIndex)
+	}
 	file := File{
 		name:        path,
-		content:     string(f),
+		content:     buf,
 		breakpoints: nil,
-		lineCount:  bytes.Count(f,lineSep),
+		lineCount:   len(lineIndices),
+		lineIndices: lineIndices,
 	}
 	log.Printf("Loaded file %s \n", path)
 	fileChan <- &file

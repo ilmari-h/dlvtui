@@ -4,7 +4,8 @@ type File struct {
 	name        string
 	content     string
 	breakpoints []uint
-	lineCount  int
+	lineCount   int
+	lineIndices []int
 }
 
 type BreakPoint struct {
@@ -20,7 +21,7 @@ func (nav *Nav) SetLine(line int) {
 	nav.currentLine[nav.currentFile.name] = line
 }
 
-func (nav *Nav)EnterNewFile(file *File) {
+func (nav *Nav) EnterNewFile(file *File) {
 	if _, ok := nav.currentLine[file.name]; !ok {
 		nav.currentLine[file.name] = 0
 	}
@@ -56,7 +57,7 @@ func NewNav(projectPath string) Nav {
 
 	return Nav{
 		projectPath: projectPath,
-		fileCache: make(map[string]*File),
+		fileCache:   make(map[string]*File),
 		currentLine: make(map[string]int),
 		breakpoints: make(map[string][]int),
 	}
