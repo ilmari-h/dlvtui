@@ -6,6 +6,7 @@ type File struct {
 	breakpoints []uint
 	lineCount   int
 	lineIndices []int
+	packageName string // TODO
 }
 
 type BreakPoint struct {

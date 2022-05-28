@@ -3,13 +3,61 @@ package main
 import (
 	"bufio"
 	"flag"
-	"os"
 	"log"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/rivo/tview"
 )
+
+func killProcess(pid int) {
+	_,err := exec.Command(
+		"kill",
+		strconv.Itoa(pid),
+	).Output()
+	if err != nil  {
+		log.Printf("Error terminating backend process at pid %d",pid)
+	}
+}
+
+func startDebugger(executable string, exArgs []string, port string) int {
+	allArgs := []string {
+		"debug",
+		"--headless",
+		"--api-version=2",
+		"--listen=127.0.0.1:" + port,
+		"--accept-multiclient",
+		executable,
+	}
+	if exArgs != nil && len(exArgs) > 0 {
+		allArgs = append(allArgs, "--")
+		allArgs = append(allArgs, exArgs...)
+	}
+	log.Printf("Starting backend:\ndlv %s",strings.Join(allArgs, " "))
+	cmd := exec.Command(
+		"dlv",
+		allArgs...
+		)
+	stdout, _ := cmd.StdoutPipe()
+	if err := cmd.Start(); err != nil  {
+		log.Printf("Error starting backend:\n%s",string(err.Error()))
+		panic(err)
+	}
+
+	go func() {
+		in := bufio.NewScanner(stdout)
+		for in.Scan() {
+			log.Printf("Backend:\n%s",in.Text())
+		}
+		if err := in.Err(); err != nil {
+			log.Printf("Error:\n%s", err)
+		}
+	}()
+
+	return cmd.Process.Pid
+}
 
 // Read file from disk.
 func loadFile(path string, fileChan chan *File) {
@@ -76,11 +124,18 @@ func getFileList(projectRoot string, filesList []string) {
 	filesList = a
 }
 
+var (
+	flagVal string
+	)
+
 func main() {
+	flag.StringVar(&flagVal, "port", "8181", "The port dlv grpc server will listen to.")
 	flag.Parse()
 
 	app := tview.NewApplication()
 	nav := NewNav(".")
+
+	defer killProcess(startDebugger("dlvtui",[]string{},"8181"))
 
 	CreateView(app, &nav, executeCommand)
 
