@@ -1,11 +1,13 @@
 package main
 
 import (
+	"dlvtui/ui"
 	"fmt"
 	"strings"
-	"dlvtui/ui"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/go-delve/delve/service/api"
+	"github.com/go-delve/delve/service/rpc2"
 	"github.com/rivo/tview"
 )
 
@@ -27,36 +29,34 @@ type View struct {
 	keyHandler  KeyHandler
 	currentMode Mode
 
-	fileChan       chan *File
-	masterView     *tview.Flex
-	textView       *ui.PerfTextView
+	fileChan   chan *File
+	masterView *tview.Flex
+	textView   *ui.PerfTextView
 
 	cmdLine         *tview.InputField
-	lineSuggestions map[LineCommand][]string
+	cmdHandler      *CommandHandler
+	//lineSuggestions map[LineCommand][]string
 
-	navState *Nav
+	dbgStateChan chan *api.DebuggerState
+	navState          *Nav
 }
 
-func parseCommand(input string) (LineCommand, []string) {
+func parseCommand(input string) LineCommand {
 	args := strings.Fields(input)
 	command := args[0]
 	cargs := args[1:]
-	return StringToLineCommand(command), cargs
+	return StringToLineCommand(command, cargs)
 }
 
-type CommandHandler func(LineCommand, []string, *View, *tview.Application)
 
 type KeyHandler struct {
 	app             *tview.Application
 	view            *View
-	commandFunction CommandHandler
 	prevKey         *tcell.EventKey
 }
 
 func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 	view := keyHandler.view
-	runCommand := keyHandler.commandFunction
-	app := keyHandler.app
 	rune := kp.event.Rune()
 	pRune := ' '
 	if keyHandler.prevKey != nil {
@@ -108,8 +108,8 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 		if key == tcell.KeyEnter {
 			linetext := view.cmdLine.GetText()
 			view.toNormalMode()
-			command, args := parseCommand(linetext)
-			runCommand(command, args, view, app)
+			command := parseCommand(linetext)
+			view.cmdHandler.RunCommand(command)
 			break
 		}
 		// In command mode return the event to allow typing.
@@ -128,6 +128,13 @@ func (view *View) newFileLoop() {
 		view.textView.GetGutterColumn().SetText(lineNumbers)
 	}
 }
+
+func (view *View) newDebuggerStateLoop() {
+	for newState := range view.dbgStateChan {
+		view.navState.dbgState = newState
+	}
+}
+
 
 func (view *View) toNormalMode() {
 	view.cmdLine.SetLabel("")
@@ -152,11 +159,6 @@ func (view *View) toTextMode() {
 // Text navigation
 
 func (view *View) scrollTo(line int) {
-	// TODO: this is very very slow with files over ~500 lines. Most likely due to highlighting using text search.
-	// Set text again as batch.
-	// use max lines to limit to size of screen.
-	// To scroll back, only option is setting the complete view again with former text, probably to size of screen.
-	// might be more efficient to use .BetchWriter to manually scroll and load more text?
 	if line < 0 || line >= view.navState.currentFile.lineCount {
 		return
 	}
@@ -184,16 +186,18 @@ func (view *View) scrollToBottom() {
 	view.scrollTo(line)
 }
 
-func CreateView(app *tview.Application, nav *Nav, commandHandler CommandHandler) View {
+func CreateTui(app *tview.Application, nav *Nav, rpcClient *rpc2.RPCClient) View {
 
 	var view = View{
-		commandChan: make(chan string, 1024),
-		fileChan:    make(chan *File, 1024),
-		navState:    nav,
-		currentMode: Normal,
+		commandChan:       make(chan string, 1024),
+		fileChan:          make(chan *File, 1024),
+		dbgStateChan: make(chan *api.DebuggerState, 1024),
+		navState:          nav,
+		currentMode:       Normal,
 	}
 
-	view.keyHandler = KeyHandler{app: app, view: &view, commandFunction: commandHandler}
+	view.keyHandler = KeyHandler{app: app, view: &view}
+	view.cmdHandler= NewCommandHandler(&view, app, rpcClient)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
 	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -207,7 +211,7 @@ func CreateView(app *tview.Application, nav *Nav, commandHandler CommandHandler)
 		SetChangedFunc(func() {
 			app.Draw()
 		})
-	view.textView.SetGutterColumn( ui.NewGutterColumn() )
+	view.textView.SetGutterColumn(ui.NewGutterColumn())
 	view.textView.GetGutterColumn().
 		SetRegions(true).
 		SetDynamicColors(true).

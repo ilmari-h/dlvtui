@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/go-delve/delve/service/api"
+)
+
 type File struct {
 	name        string
 	content     string
@@ -41,12 +45,9 @@ type Nav struct {
 	currentLine map[string]int
 	fileCache   map[string]*File
 
-	// debugger
-	locals            []string
-	breakpoints       map[string][]int
-	currentBreakpoint BreakPoint
-	goroutines        []string
-	stack             []string
+	// Debugger
+	dbgState *api.DebuggerState
+	breakpoints map[string] []*api.Breakpoint
 }
 
 // Load saved session
@@ -60,6 +61,5 @@ func NewNav(projectPath string) Nav {
 		projectPath: projectPath,
 		fileCache:   make(map[string]*File),
 		currentLine: make(map[string]int),
-		breakpoints: make(map[string][]int),
 	}
 }
