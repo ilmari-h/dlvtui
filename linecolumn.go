@@ -28,10 +28,13 @@ func (lc *LineColumn) Render(lineStart int, lineEnd int) {
 	breakpoints := lc.navState.Breakpoints[lc.navState.CurrentFile.Path]
 	for i := lineStart; i <= lineEnd; i++ {
 		bp := " "
-		if _, ok := breakpoints[i] ; ok {
+		if lc.navState.CurrentBreakpoint != nil && lc.navState.CurrentBreakpoint.Line == i {
 			bp = "●"
+		} else if _, ok := breakpoints[i] ; ok {
+			bp = "○"
 		}
-		if( i == lineStart) {
+
+		if( i == lineStart) { // TODO: use current line
 			lineNumbers += fmt.Sprintf(`[black:white]%s%*d [-:-:-]`,bp, lc.width -2, i)
 		} else {
 			lineNumbers += fmt.Sprintf(`%s%*d `,bp,lc.width - 2, i)

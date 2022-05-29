@@ -51,9 +51,10 @@ func StringToLineCommand(s string, args []string) LineCommand {
 		return &OpenFile{
 			File: args[0],
 		}
+	case "c", "continue":
+		return &Continue{}
 	case "q", "quit":
-		return &Quit{
-		}
+		return &Quit{}
 	}
 	return nil
 }
@@ -86,10 +87,23 @@ type CreateBreakpoint struct {
 }
 
 func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	// TODO: make configurable
+	config := api.LoadConfig{
+		FollowPointers: true,
+		MaxVariableRecurse: 10,
+		MaxStringLen: 999,
+		MaxArrayValues: 999,
+		MaxStructFields: -1,
+	}
+	log.Printf("Creating bp in %s at line %d\n",cmd.File, cmd.Line)
 	res, err := client.CreateBreakpoint(&api.Breakpoint{
 		File: cmd.File,
 		Line: cmd.Line,
+		Goroutine: true,
+		LoadLocals: &config,
+		LoadArgs: &config,
 	})
+
 	if err != nil {
 		log.Printf("rpc error:%s\n",err.Error())
 		return
@@ -133,6 +147,14 @@ type Quit struct {
 
 func (cmd *Quit) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	app.Stop()
+}
+
+type Continue struct {
+}
+
+func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	res := <- client.Continue()
+	view.dbgStateChan <- res
 }
 
 type GetBreakpoints struct {

@@ -84,17 +84,16 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 			bps := view.navState.Breakpoints
 
 			// If breakpoint on this line, remove it.
-			log.Printf("Trying to remove BP at %s on line %d", view.navState.CurrentFile.Path, view.navState.CurrentLine())
 			if len( bps[view.navState.CurrentFile.Path]) != 0 {
+				// Using 1 based indices on the backend.
 				if bp, ok := bps[view.navState.CurrentFile.Path][view.navState.CurrentLine() + 1] ; ok {
-					log.Printf("Removing BP at %s", view.navState.CurrentFile.Path)
 					view.cmdHandler.RunCommand(&ClearBreakpoint{ bp })
+					break;
 				}
-				break;
 			}
 
 			view.cmdHandler.RunCommand(&CreateBreakpoint{
-				Line: view.navState.CurrentLine() + 1,
+				Line: view.navState.CurrentLine() + 1, // Using 1 based indices on the backend.
 				File: view.navState.CurrentFile.Path, // This should have the absolute path TODO
 			})
 			break
@@ -135,7 +134,8 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 			view.cmdHandler.RunCommand(command)
 			break
 		}
-		// In command mode return the event to allow typing.
+
+		// In command mode return the event to propagate it. Allows typing.
 		return kp.event
 	}
 	// No event propagation by default.
@@ -144,23 +144,34 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 
 func (view *View) newFileLoop() {
 	for newFile := range view.fileChan {
-		lineNumbers := ""
 		view.navState.EnterNewFile(newFile)
 		view.textView.SetTextP(newFile.Content, newFile.LineIndices)
-		view.textView.ScrollToBeginning()
-		view.textView.GetGutterColumn().SetText(lineNumbers)
+		view.scrollToTop()
 	}
 }
 
-func (view *View) newDebuggerStateLoop() {
+func (view *View) dbgStateLoop() {
 	for newState := range view.dbgStateChan {
+		line := newState.CurrentThread.Line
+		file := newState.CurrentThread.File
+		log.Printf("Hit breakpoint in %s on line %d!",file,line)
+
 		view.navState.DbgState = newState
+
+		// Update breakpoint that was hit
+		view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
+		view.navState.CurrentBreakpoint = newState.CurrentThread.Breakpoint
+
+		// Navigate to file at breakpoint.
+		view.navState.ChangeCurrentFile(file)
+		view.scrollTo(line - 1) // Internally use zero based indices.
 	}
 }
 
 func (view *View) breakpointLoop() {
 	for newBp := range view.breakpointChan {
 
+		log.Printf("Got breakpoint in %s on line %d!",newBp.File, newBp.Line)
 		// ID -1 signifies deleted breakpoint
 		if newBp.ID == -1 {
 			delete(view.navState.Breakpoints[newBp.File], newBp.Line)
@@ -286,6 +297,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 
 	go view.newFileLoop()
 	go view.breakpointLoop()
+	go view.dbgStateLoop()
 
 	go view.cmdHandler.RunCommand(&GetBreakpoints{})
 

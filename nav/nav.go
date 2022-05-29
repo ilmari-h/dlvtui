@@ -20,20 +20,24 @@ type BreakPoint struct {
 }
 
 func (nav *Nav) CurrentLine() int {
-	return nav.CurrentLines[nav.CurrentFile.Name]
+	return nav.CurrentLines[nav.CurrentFile.Path]
 }
 
 func (nav *Nav) SetLine(line int) {
-	nav.CurrentLines[nav.CurrentFile.Name] = line
+	nav.CurrentLines[nav.CurrentFile.Path] = line
 }
 
 func (nav *Nav) EnterNewFile(file *File) {
-	if _, ok := nav.CurrentLines[file.Name]; !ok {
-		nav.CurrentLines[file.Name] = 0
+	if _, ok := nav.CurrentLines[file.Path]; !ok {
+		nav.CurrentLines[file.Path] = 0
 	}
 	nav.CurrentLines[file.Path] = 0
 	nav.FileCache[file.Path] = file
 	nav.CurrentFile = file
+}
+
+func (nav *Nav) ChangeCurrentFile(filePath string){
+	nav.CurrentFile = nav.FileCache[filePath]
 }
 
 // Represents state of navigation within the project directory and the debugger.
@@ -46,9 +50,10 @@ type Nav struct {
 	CurrentLines map[string]int
 	FileCache   map[string]*File
 
-	// Debugger
+	// debugger
 	DbgState *api.DebuggerState
 	Breakpoints map[string] map[int]*api.Breakpoint
+	CurrentBreakpoint *api.Breakpoint
 }
 
 // Load saved session
