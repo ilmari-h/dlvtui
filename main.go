@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -85,6 +87,13 @@ var (
 )
 
 func main() {
+
+	// TODO: parse os args[1] absolute path
+	if len( os.Args ) < 2 {
+		fmt.Println("No executable or PID provided.")
+		os.Exit(1)
+	}
+
 	flag.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
 	flag.Parse()
 
@@ -94,7 +103,7 @@ func main() {
 	clientC := make(chan *rpc2.RPCClient)
 	filesListC := make(chan []string)
 
-	defer killProcess(startDebugger("dlvtui", []string{}, "8181"))
+	defer killProcess(startDebugger(os.Args[1], []string{}, "8181"))
 	go dlvrpc.NewClient("127.0.0.1:"+port, clientC)
 	go getFileList(".", filesListC)
 
