@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 
 	"github.com/rivo/tview"
 )
@@ -10,7 +9,7 @@ type PerfTextView struct {
 	lineIndices []int
 	currentViewHeight int
 	fullText string
-	gutterColumn *GutterColumn
+	gutterColumn GutterColumn
 	tview.TextView
 }
 
@@ -32,16 +31,7 @@ func (perfTextView *PerfTextView) ScrollTo(line int) {
 	}
 	perfTextView.SetText(perfTextView.fullText[startIdx:endIdx])
 
-	// Set line numbers in gutter.
-	lineNumbers := ""
-	for i := line + 1; i <= line + perfTextView.currentViewHeight; i++ {
-		if( i == line + 1) {
-			lineNumbers += fmt.Sprintf(`[black:white] %3d [-:-:-]`, i)
-		} else {
-			lineNumbers += fmt.Sprintf(` %3d `, i)
-		}
-	}
-	perfTextView.gutterColumn.SetText(lineNumbers)
+	perfTextView.gutterColumn.Render(line+1, line+perfTextView.currentViewHeight)
 
 }
 
@@ -56,10 +46,10 @@ func (perfTextView *PerfTextView) SetTextP(text string, lineIndices []int) {
 	perfTextView.SetText(text[:strIndx])
 }
 
-func (perfTextView *PerfTextView) SetGutterColumn(column *GutterColumn) {
+func (perfTextView *PerfTextView) SetGutterColumn(column GutterColumn) {
 	perfTextView.gutterColumn = column
 }
 
-func (perfTextView *PerfTextView) GetGutterColumn() *GutterColumn {
-	return perfTextView.gutterColumn
+func (perfTextView *PerfTextView) GetGutterColumn() *tview.TextView {
+	return perfTextView.gutterColumn.GetTextView()
 }

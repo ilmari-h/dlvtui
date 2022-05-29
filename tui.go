@@ -1,9 +1,12 @@
 package main
 
 import (
-	"dlvtui/ui"
 	"fmt"
+	"log"
 	"strings"
+
+	"dlvtui/nav"
+	"dlvtui/ui"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/go-delve/delve/service/api"
@@ -29,7 +32,7 @@ type View struct {
 	keyHandler  KeyHandler
 	currentMode Mode
 
-	fileChan   chan *File
+	fileChan   chan *nav.File
 	masterView *tview.Flex
 	textView   *ui.PerfTextView
 
@@ -38,7 +41,8 @@ type View struct {
 	//lineSuggestions map[LineCommand][]string
 
 	dbgStateChan chan *api.DebuggerState
-	navState          *Nav
+	breakpointChan chan *api.Breakpoint
+	navState          *nav.Nav
 }
 
 func parseCommand(input string) LineCommand {
@@ -76,6 +80,25 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 			break
 		}
 	case Text:
+		if rune == 'b' {
+			bps := view.navState.Breakpoints
+
+			// If breakpoint on this line, remove it.
+			log.Printf("Trying to remove BP at %s on line %d", view.navState.CurrentFile.Path, view.navState.CurrentLine())
+			if len( bps[view.navState.CurrentFile.Path]) != 0 {
+				if bp, ok := bps[view.navState.CurrentFile.Path][view.navState.CurrentLine() + 1] ; ok {
+					log.Printf("Removing BP at %s", view.navState.CurrentFile.Path)
+					view.cmdHandler.RunCommand(&ClearBreakpoint{ bp })
+				}
+				break;
+			}
+
+			view.cmdHandler.RunCommand(&CreateBreakpoint{
+				Line: view.navState.CurrentLine() + 1,
+				File: view.navState.CurrentFile.Path, // This should have the absolute path TODO
+			})
+			break
+		}
 		if rune == ':' {
 			view.toCmdMode()
 			break
@@ -123,7 +146,7 @@ func (view *View) newFileLoop() {
 	for newFile := range view.fileChan {
 		lineNumbers := ""
 		view.navState.EnterNewFile(newFile)
-		view.textView.SetTextP(newFile.content, newFile.lineIndices)
+		view.textView.SetTextP(newFile.Content, newFile.LineIndices)
 		view.textView.ScrollToBeginning()
 		view.textView.GetGutterColumn().SetText(lineNumbers)
 	}
@@ -131,10 +154,25 @@ func (view *View) newFileLoop() {
 
 func (view *View) newDebuggerStateLoop() {
 	for newState := range view.dbgStateChan {
-		view.navState.dbgState = newState
+		view.navState.DbgState = newState
 	}
 }
 
+func (view *View) breakpointLoop() {
+	for newBp := range view.breakpointChan {
+
+		// ID -1 signifies deleted breakpoint
+		if newBp.ID == -1 {
+			delete(view.navState.Breakpoints[newBp.File], newBp.Line)
+			continue
+		}
+
+		if len(view.navState.Breakpoints[newBp.File]) == 0 {
+			view.navState.Breakpoints[newBp.File] = make(map[int]*api.Breakpoint)
+		}
+		view.navState.Breakpoints[newBp.File][newBp.Line] = newBp
+	}
+}
 
 func (view *View) toNormalMode() {
 	view.cmdLine.SetLabel("")
@@ -159,10 +197,9 @@ func (view *View) toTextMode() {
 // Text navigation
 
 func (view *View) scrollTo(line int) {
-	if line < 0 || line >= view.navState.currentFile.lineCount {
+	if line < 0 || line >= view.navState.CurrentFile.LineCount {
 		return
 	}
-	view.textView.Highlight("3")
 	view.textView.ScrollTo(line)
 	view.navState.SetLine(line)
 }
@@ -182,17 +219,18 @@ func (view *View) scrollToTop() {
 }
 
 func (view *View) scrollToBottom() {
-	line := view.navState.currentFile.lineCount - 1
+	line := view.navState.CurrentFile.LineCount - 1
 	view.scrollTo(line)
 }
 
-func CreateTui(app *tview.Application, nav *Nav, rpcClient *rpc2.RPCClient) View {
+func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCClient) View {
 
 	var view = View{
 		commandChan:       make(chan string, 1024),
-		fileChan:          make(chan *File, 1024),
+		fileChan:          make(chan *nav.File, 1024),
 		dbgStateChan: make(chan *api.DebuggerState, 1024),
-		navState:          nav,
+		breakpointChan: make(chan *api.Breakpoint, 1024),
+		navState:          navState,
 		currentMode:       Normal,
 	}
 
@@ -211,8 +249,9 @@ func CreateTui(app *tview.Application, nav *Nav, rpcClient *rpc2.RPCClient) View
 		SetChangedFunc(func() {
 			app.Draw()
 		})
-	view.textView.SetGutterColumn(ui.NewGutterColumn())
-	view.textView.GetGutterColumn().
+	lineColumn := NewLineColumn(5,navState)
+	view.textView.SetGutterColumn(lineColumn)
+	lineColumn.textView.
 		SetRegions(true).
 		SetDynamicColors(true).
 		SetChangedFunc(func() {
@@ -235,7 +274,7 @@ func CreateTui(app *tview.Application, nav *Nav, rpcClient *rpc2.RPCClient) View
 
 	flex.AddItem(
 		tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(view.textView.GetGutterColumn(), 5, 1, false).
+			AddItem(lineColumn.textView, lineColumn.width, 1, false).
 			AddItem(view.textView, 0, 1, false),
 		0, 1, false)
 	flex.AddItem(commandLine, 1, 1, false)
@@ -246,6 +285,9 @@ func CreateTui(app *tview.Application, nav *Nav, rpcClient *rpc2.RPCClient) View
 	view.cmdLine = commandLine
 
 	go view.newFileLoop()
+	go view.breakpointLoop()
+
+	go view.cmdHandler.RunCommand(&GetBreakpoints{})
 
 	return view
 }

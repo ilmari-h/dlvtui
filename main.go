@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"dlvtui/dlvrpc"
+	"dlvtui/nav"
 
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/rivo/tview"
@@ -55,7 +56,7 @@ func startDebugger(executable string, exArgs []string, port string) int {
 	go func() {
 		in := bufio.NewScanner(stdout)
 		for in.Scan() {
-			log.Printf("Backend:\n%s", in.Text())
+			log.Printf("dlv-backend:\n%s", in.Text())
 		}
 		if err := in.Err(); err != nil {
 			log.Printf("Error:\n%s", err)
@@ -84,11 +85,11 @@ var (
 )
 
 func main() {
-	flag.StringVar(&port, "port", "8181", "The port dlv grpc server will listen to.")
+	flag.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
 	flag.Parse()
 
 	app := tview.NewApplication()
-	nav := NewNav(".")
+	nav := nav.NewNav(".")
 
 	clientC := make(chan *rpc2.RPCClient)
 	filesListC := make(chan []string)
@@ -98,7 +99,7 @@ func main() {
 	go getFileList(".", filesListC)
 
 	rpcClient := <-clientC
-	nav.sourceFiles = <-filesListC
+	nav.SourceFiles = <-filesListC
 
 	CreateTui(app, &nav, rpcClient)
 
