@@ -18,7 +18,8 @@ type Mode int
 
 const (
 	Normal Mode = iota
-	Text
+	Code
+	Vars
 	Cmd
 )
 
@@ -31,10 +32,12 @@ type View struct {
 	commandChan chan string
 	keyHandler  KeyHandler
 	currentMode Mode
-
 	fileChan   chan *nav.File
+
+	pages      *tview.Pages
 	masterView *tview.Flex
 	textView   *ui.PerfTextView
+	varsView   *ui.VarsView
 
 	cmdLine         *tview.InputField
 	cmdHandler      *CommandHandler
@@ -70,6 +73,18 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 	keyHandler.prevKey = kp.event
 
 	switch kp.mode {
+	case Vars:
+		if rune == ':' {
+			view.toCmdMode()
+			break
+		}
+		if rune == 'h' {
+			view.pages.SwitchToPage("code")
+			view.toNormalMode()
+			break
+		}
+		keyHandler.app.SetFocus(view.varsView.GetWidget())
+		return kp.event
 	case Normal:
 		if rune == ':' {
 			view.toCmdMode()
@@ -79,13 +94,21 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 			view.toTextMode()
 			break
 		}
-	case Text:
+		if rune == 'h' {
+			view.pages.SwitchToPage("code")
+			break
+		}
+		if rune == 'l' {
+			view.pages.SwitchToPage("vars")
+			view.toVarsMode()
+			break
+		}
+	case Code:
 		if rune == 'b' {
 			bps := view.navState.Breakpoints
 
 			// If breakpoint on this line, remove it.
-			if len( bps[view.navState.CurrentFile.Path]) != 0 {
-				// Using 1 based indices on the backend.
+			if len( bps[view.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
 				if bp, ok := bps[view.navState.CurrentFile.Path][view.navState.CurrentLine() + 1] ; ok {
 					view.cmdHandler.RunCommand(&ClearBreakpoint{ bp })
 					break;
@@ -150,6 +173,10 @@ func (view *View) newFileLoop() {
 	}
 }
 
+func (view *View)setProgramAsExited(exitCode int) {
+	view.navState.CurrentBreakpoint = nil
+}
+
 func (view *View) dbgStateLoop() {
 	for newState := range view.dbgStateChan {
 		line := newState.CurrentThread.Line
@@ -165,6 +192,11 @@ func (view *View) dbgStateLoop() {
 		// Navigate to file at breakpoint.
 		view.navState.ChangeCurrentFile(file)
 		view.scrollTo(line - 1) // Internally use zero based indices.
+
+		// Update local variables
+		view.varsView.AddVars(nil, newState.CurrentThread.BreakpointInfo.Locals, ui.Local)
+		view.varsView.AddVars(nil, newState.CurrentThread.BreakpointInfo.Arguments, ui.Args)
+		view.varsView.AddVars(nil, newState.CurrentThread.BreakpointInfo.Variables, ui.Vars)
 	}
 }
 
@@ -185,6 +217,12 @@ func (view *View) breakpointLoop() {
 	}
 }
 
+func (view *View) toVarsMode() {
+	view.cmdLine.SetLabel("")
+	view.keyHandler.app.SetFocus(view.masterView)
+	view.currentMode = Vars
+}
+
 func (view *View) toNormalMode() {
 	view.cmdLine.SetLabel("")
 	view.cmdLine.SetText("")
@@ -202,7 +240,7 @@ func (view *View) toTextMode() {
 	view.cmdLine.SetLabel("")
 	view.cmdLine.SetText("")
 	view.keyHandler.app.SetFocus(view.textView)
-	view.currentMode = Text
+	view.currentMode = Code
 }
 
 // Text navigation
@@ -243,6 +281,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 		breakpointChan: make(chan *api.Breakpoint, 1024),
 		navState:          navState,
 		currentMode:       Normal,
+		pages: tview.NewPages(),
 	}
 
 	view.keyHandler = KeyHandler{app: app, view: &view}
@@ -283,11 +322,15 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 	commandLine.SetBackgroundColor(tcell.ColorDefault)
 	commandLine.SetFieldBackgroundColor(tcell.ColorDefault)
 
-	flex.AddItem(
-		tview.NewFlex().SetDirection(tview.FlexColumn).
+	view.pages.AddPage("code", tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(lineColumn.textView, lineColumn.width, 1, false).
 			AddItem(view.textView, 0, 1, false),
-		0, 1, false)
+		true, true)
+
+	view.varsView = ui.NewVarsView()
+	view.pages.AddPage("vars", view.varsView.GetWidget(), true, false)
+
+	flex.AddItem( view.pages, 0, 1, false )
 	flex.AddItem(commandLine, 1, 1, false)
 
 	app.SetRoot(flex, true).SetFocus(flex)

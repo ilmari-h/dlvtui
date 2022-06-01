@@ -154,6 +154,13 @@ type Continue struct {
 
 func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	res := <- client.Continue()
+
+	if res.Exited {
+		log.Printf("Program has finished with exit status %d.", res.ExitStatus)
+		view.setProgramAsExited( res.ExitStatus )
+		return
+	}
+
 	view.dbgStateChan <- res
 }
 

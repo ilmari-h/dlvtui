@@ -4,7 +4,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
 )
 
@@ -35,11 +34,3 @@ func NewClient(addr string, clientChan chan *rpc2.RPCClient) {
 	clientChan <- rpc2.NewClient(addr)
 }
 
-func (client *RPCClient) CreateBreakpoint(fPath string, line int) {
-
-	client.dlvclient.CreateBreakpoint(&api.Breakpoint{
-		ID: 1,
-		File: fPath,
-		Line: line,
-	})
-}

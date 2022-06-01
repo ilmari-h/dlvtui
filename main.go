@@ -49,7 +49,7 @@ func startDebugger(executable string, exArgs []string, port string) int {
 	)
 	stdout, _ := cmd.StdoutPipe()
 	if err := cmd.Start(); err != nil {
-		log.Printf("Error starting backend:\n%s", string(err.Error()))
+		log.Printf("Error starting dlv-backend:\n%s", string(err.Error()))
 		panic(err)
 	}
 
@@ -92,6 +92,7 @@ func main() {
 	if len( os.Args ) < 2 {
 		fmt.Println("No executable or PID provided.")
 		os.Exit(1)
+		return
 	}
 
 	flag.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
