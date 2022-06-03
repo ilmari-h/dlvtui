@@ -1,7 +1,6 @@
 package ui
 
 import (
-
 	"github.com/rivo/tview"
 )
 
@@ -42,7 +41,12 @@ func (perfTextView *PerfTextView) SetTextP(text string, lineIndices []int) {
 	perfTextView.currentViewHeight = h - 1
 	perfTextView.SetMaxLines(h)
 
-	strIndx := lineIndices[perfTextView.currentViewHeight]
+	var strIndx = 0
+	if len(lineIndices) > perfTextView.currentViewHeight {
+		strIndx = lineIndices[perfTextView.currentViewHeight]
+	} else {
+		strIndx = len(lineIndices) - 1
+	}
 	perfTextView.SetText(text[:strIndx])
 }
 

@@ -14,15 +14,9 @@ type VarsView struct {
 	locals *tview.TreeNode
 	args *tview.TreeNode
 	vars *tview.TreeNode
-}
 
-type VarListing int
-const (
-	Local VarListing = iota
-	Global
-	Args
-	Vars
-)
+	expandedCache map[uint64]bool
+}
 
 func NewVarsView() *VarsView {
 	gHeader := tview.NewTreeNode("globals").SetColor(tcell.Color101).SetSelectable(true)
@@ -45,33 +39,48 @@ func NewVarsView() *VarsView {
 		locals: lHeader,
 		args: aHeader,
 		vars: vHeader,
+		expandedCache: make(map[uint64]bool),
 	}
 }
 
+func (varsView *VarsView)RenderBreakpointHit(state *api.BreakpointInfo) {
+	varsView.locals.ClearChildren()
+	varsView.args.ClearChildren()
+	varsView.globals.ClearChildren()
 
-func (varsView *VarsView)AddVars(parent *tview.TreeNode, vars []api.Variable, listing VarListing) {
+	varsView.AddVars(varsView.locals, state.Locals)
+	varsView.AddVars(varsView.args, state.Arguments)
+	varsView.AddVars(varsView.globals, state.Variables)
+}
+
+func (varsView *VarsView)AddVars(parent *tview.TreeNode, vars []api.Variable ){
 	for vi := range vars {
 		vr := vars[vi]
 		newNode := tview.NewTreeNode( fmt.Sprintf("[green::b]%s[purple]<%s>[white:-:-]: %s",vr.Name, vr.Type, vr.Value)).
 			SetReference(vr)
 		newNode.SetSelectable(true)
 		newNode.SetColor(tcell.ColorBlack)
-		if parent == nil {
-			if listing == Local {
-				varsView.locals.AddChild(newNode)
-			} else if listing == Args {
-				varsView.args.AddChild(newNode)
-			} else if listing == Global {
-				varsView.globals.AddChild(newNode)
-			} else {
-				varsView.vars.AddChild(newNode)
-			}
-		} else {
-			parent.AddChild(newNode)
-		}
+
+		// If node has children, initially collapse. Expand on select.
 		if vr.Children != nil && len(vr.Children) > 0 {
-			varsView.AddVars(newNode,vr.Children,listing)
+			varsView.AddVars(newNode, vr.Children)
+			if !varsView.expandedCache[vr.Addr] {
+				newNode.SetText( newNode.GetText() + " [+]" )
+				newNode.CollapseAll()
+			}
+			newNode.SetSelectedFunc(func() {
+				varsView.expandedCache[vr.Addr] = !newNode.IsExpanded()
+				r := newNode.GetReference().(api.Variable);
+				if !newNode.IsExpanded() {
+					newNode.SetText( fmt.Sprintf("[green::b]%s[purple]<%s>[white:-:-]: %s",r.Name, r.Type, r.Value))
+					newNode.Expand()
+				} else {
+					newNode.SetText( fmt.Sprintf("[green::b]%s[purple]<%s>[white:-:-]: %s [+]",r.Name, r.Type, r.Value))
+					newNode.Collapse()
+				}
+			})
 		}
+		parent.AddChild(newNode)
 	}
 }
 

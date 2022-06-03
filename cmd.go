@@ -118,13 +118,14 @@ type OpenFile struct {
 func (cmd *OpenFile) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
 	// Check cache or open new file.
-	absPath, _ := filepath.Abs(cmd.File)
+	absPath :=  filepath.Join(view.navState.ProjectPath, cmd.File)
+	log.Printf("Opening file %s", absPath)
 	if val, ok := view.navState.FileCache[absPath]; ok {
 		view.fileChan <- val
 		return
 	}
 	app.SetFocus(view.textView)
-	go loadFile(cmd.File, view.fileChan)
+	go loadFile(absPath, view.fileChan)
 }
 
 

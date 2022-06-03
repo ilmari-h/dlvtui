@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -30,8 +31,9 @@ func killProcess(pid int) {
 }
 
 func startDebugger(executable string, exArgs []string, port string) int {
+	log.Printf("Debugging executable at path: %s",executable)
 	allArgs := []string{
-		"debug",
+		"exec",
 		"--headless",
 		"--api-version=2",
 		"--listen=127.0.0.1:" + port,
@@ -84,29 +86,36 @@ func getFileList(projectRoot string, filesList chan []string) {
 
 var (
 	port string
+	dir string
 )
 
 func main() {
 
-	// TODO: parse os args[1] absolute path
 	if len( os.Args ) < 2 {
-		fmt.Println("No executable or PID provided.")
+		fmt.Println("No debug target provided.")
 		os.Exit(1)
 		return
 	}
 
-	flag.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
-	flag.Parse()
+	// Parse flags after first argument.
+	exFlags := flag.NewFlagSet("",flag.ExitOnError)
+	exFlags.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
+	exFlags.StringVar(&dir, "dir", "./", "Source code directory.")
+	exFlags.Parse(os.Args[2:])
+
+	excPath, _ := filepath.Abs(os.Args[1])
+	dir, _ := filepath.Abs(dir)
+	log.Printf("Using dir: %s", dir)
 
 	app := tview.NewApplication()
-	nav := nav.NewNav(".")
+	nav := nav.NewNav(dir)
 
 	clientC := make(chan *rpc2.RPCClient)
 	filesListC := make(chan []string)
 
-	defer killProcess(startDebugger(os.Args[1], []string{}, "8181"))
+	defer killProcess(startDebugger(excPath, []string{}, "8181"))
 	go dlvrpc.NewClient("127.0.0.1:"+port, clientC)
-	go getFileList(".", filesListC)
+	go getFileList(dir, filesListC)
 
 	rpcClient := <-clientC
 	nav.SourceFiles = <-filesListC

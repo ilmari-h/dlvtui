@@ -194,9 +194,7 @@ func (view *View) dbgStateLoop() {
 		view.scrollTo(line - 1) // Internally use zero based indices.
 
 		// Update local variables
-		view.varsView.AddVars(nil, newState.CurrentThread.BreakpointInfo.Locals, ui.Local)
-		view.varsView.AddVars(nil, newState.CurrentThread.BreakpointInfo.Arguments, ui.Args)
-		view.varsView.AddVars(nil, newState.CurrentThread.BreakpointInfo.Variables, ui.Vars)
+		view.varsView.RenderBreakpointHit(newState.CurrentThread.BreakpointInfo)
 	}
 }
 
