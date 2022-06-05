@@ -87,20 +87,25 @@ func getFileList(projectRoot string, filesList chan []string) {
 var (
 	port string
 	dir string
+	attachMode bool
 )
 
 func main() {
-
-	if len( os.Args ) < 2 {
-		fmt.Println("No debug target provided.")
-		os.Exit(1)
-		return
-	}
 
 	// Parse flags after first argument.
 	exFlags := flag.NewFlagSet("",flag.ExitOnError)
 	exFlags.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
 	exFlags.StringVar(&dir, "dir", "./", "Source code directory.")
+	exFlags.BoolVar(&attachMode, "attach", false, "If enabled, attach debugger to process. Interpret first argument as PID.")
+
+	if len( os.Args ) < 2 {
+		fmt.Println("No debug target provided.\n"+
+		"The first argument should be an executable or a PID if the flag `attach` is set.")
+		exFlags.Usage()
+		os.Exit(1)
+		return
+	}
+
 	exFlags.Parse(os.Args[2:])
 
 	excPath, _ := filepath.Abs(os.Args[1])
@@ -113,7 +118,7 @@ func main() {
 	clientC := make(chan *rpc2.RPCClient)
 	filesListC := make(chan []string)
 
-	defer killProcess(startDebugger(excPath, []string{}, "8181"))
+	defer killProcess(startDebugger(excPath, []string{}, port))
 	go dlvrpc.NewClient("127.0.0.1:"+port, clientC)
 	go getFileList(dir, filesListC)
 

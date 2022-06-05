@@ -18,7 +18,6 @@ type Mode int
 
 const (
 	Normal Mode = iota
-	Code
 	Vars
 	Cmd
 )
@@ -26,6 +25,18 @@ const (
 type KeyPress struct {
 	mode  Mode
 	event *tcell.EventKey
+}
+
+type DebuggerStep struct {
+	locals []api.Variable
+	args []api.Variable
+	globals []api.Variable
+}
+
+type DebuggerMove struct {
+	DbgState *api.DebuggerState
+	DbgStep *DebuggerStep
+	Stack []api.Stackframe
 }
 
 type View struct {
@@ -43,7 +54,7 @@ type View struct {
 	cmdHandler      *CommandHandler
 	//lineSuggestions map[LineCommand][]string
 
-	dbgStateChan chan *api.DebuggerState
+	dbgMoveChan chan *DebuggerMove
 	breakpointChan chan *api.Breakpoint
 	navState          *nav.Nav
 }
@@ -79,7 +90,6 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 			break
 		}
 		if rune == 'h' {
-			view.pages.SwitchToPage("code")
 			view.toNormalMode()
 			break
 		}
@@ -90,20 +100,10 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 			view.toCmdMode()
 			break
 		}
-		if rune == 'i' {
-			view.toTextMode()
-			break
-		}
-		if rune == 'h' {
-			view.pages.SwitchToPage("code")
-			break
-		}
 		if rune == 'l' {
-			view.pages.SwitchToPage("vars")
 			view.toVarsMode()
 			break
 		}
-	case Code:
 		if rune == 'b' {
 			bps := view.navState.Breakpoints
 
@@ -121,10 +121,6 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 			})
 			break
 		}
-		if rune == ':' {
-			view.toCmdMode()
-			break
-		}
 		if rune == 'j' {
 			view.scrollDown()
 			break
@@ -139,10 +135,6 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 		}
 		if rune == 'G' && pRune == 'G' {
 			view.scrollToBottom()
-			break
-		}
-		if key == tcell.KeyEscape {
-			view.toNormalMode()
 			break
 		}
 	case Cmd:
@@ -177,24 +169,46 @@ func (view *View)setProgramAsExited(exitCode int) {
 	view.navState.CurrentBreakpoint = nil
 }
 
-func (view *View) dbgStateLoop() {
-	for newState := range view.dbgStateChan {
+func (view *View) dbgMoveLoop() {
+	for dbgMove := range view.dbgMoveChan {
+		newState := dbgMove.DbgState
 		line := newState.CurrentThread.Line
 		file := newState.CurrentThread.File
-		log.Printf("Hit breakpoint in %s on line %d!",file,line)
-
 		view.navState.DbgState = newState
 
-		// Update breakpoint that was hit
-		view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
-		view.navState.CurrentBreakpoint = newState.CurrentThread.Breakpoint
-
-		// Navigate to file at breakpoint.
+		// Navigate to file at current line.
 		view.navState.ChangeCurrentFile(file)
 		view.scrollTo(line - 1) // Internally use zero based indices.
 
-		// Update local variables
-		view.varsView.RenderBreakpointHit(newState.CurrentThread.BreakpointInfo)
+		// Store variables in current scope.
+		var args []api.Variable
+		var locals []api.Variable
+		var globals []api.Variable
+		var returns []api.Variable
+
+		// If hit breakpoint.
+		if newState.CurrentThread.BreakpointInfo != nil {
+
+			log.Printf("Hit breakpoint in %s on line %d!",file,line)
+
+			// Update breakpoint that was hit
+			view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
+			view.navState.CurrentBreakpoint = newState.CurrentThread.Breakpoint
+
+			locals = newState.CurrentThread.BreakpointInfo.Locals
+			globals = newState.CurrentThread.BreakpointInfo.Variables
+			args = newState.CurrentThread.BreakpointInfo.Arguments
+
+		// If just step.
+		} else if dbgMove.DbgStep != nil {
+			locals = append(locals, dbgMove.DbgStep.locals...)
+			args = append(args, dbgMove.DbgStep.args...)
+		}
+
+		returns = newState.CurrentThread.ReturnValues
+
+		// Update variable view.
+		view.varsView.RenderDebuggerMove(args, locals, globals,returns)
 	}
 }
 
@@ -216,12 +230,17 @@ func (view *View) breakpointLoop() {
 }
 
 func (view *View) toVarsMode() {
+	view.pages.SwitchToPage("vars")
 	view.cmdLine.SetLabel("")
 	view.keyHandler.app.SetFocus(view.masterView)
 	view.currentMode = Vars
 }
 
 func (view *View) toNormalMode() {
+	view.cmdLine.SetAutocompleteFunc(func(currentText string) (entries []string) {
+		return []string{}
+	})
+	view.pages.SwitchToPage("code")
 	view.cmdLine.SetLabel("")
 	view.cmdLine.SetText("")
 	view.keyHandler.app.SetFocus(view.masterView)
@@ -229,16 +248,10 @@ func (view *View) toNormalMode() {
 }
 
 func (view *View) toCmdMode() {
+	view.cmdLine.SetAutocompleteFunc( view.cmdHandler.GetSuggestions )
 	view.cmdLine.SetLabel(":")
 	view.keyHandler.app.SetFocus(view.cmdLine)
 	view.currentMode = Cmd
-}
-
-func (view *View) toTextMode() {
-	view.cmdLine.SetLabel("")
-	view.cmdLine.SetText("")
-	view.keyHandler.app.SetFocus(view.textView)
-	view.currentMode = Code
 }
 
 // Text navigation
@@ -275,7 +288,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 	var view = View{
 		commandChan:       make(chan string, 1024),
 		fileChan:          make(chan *nav.File, 1024),
-		dbgStateChan: make(chan *api.DebuggerState, 1024),
+		dbgMoveChan: make(chan *DebuggerMove, 1024),
 		breakpointChan: make(chan *api.Breakpoint, 1024),
 		navState:          navState,
 		currentMode:       Normal,
@@ -338,7 +351,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 
 	go view.newFileLoop()
 	go view.breakpointLoop()
-	go view.dbgStateLoop()
+	go view.dbgMoveLoop()
 
 	go view.cmdHandler.RunCommand(&GetBreakpoints{})
 

@@ -54,6 +54,7 @@ type Nav struct {
 	DbgState *api.DebuggerState
 	Breakpoints map[string] map[int]*api.Breakpoint
 	CurrentBreakpoint *api.Breakpoint
+	CurrentStack []*api.Stackframe
 }
 
 // Load saved session

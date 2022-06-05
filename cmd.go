@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"bufio"
+	"strings"
 	"path/filepath"
 	"dlvtui/nav"
 
@@ -11,6 +12,15 @@ import (
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/rivo/tview"
 )
+
+// TODO: make configurable
+var defaultConfig = api.LoadConfig{
+	FollowPointers: true,
+	MaxVariableRecurse: 10,
+	MaxStringLen: 999,
+	MaxArrayValues: 999,
+	MaxStructFields: -1,
+}
 
 // Read file from disk.
 func loadFile(path string, fileChan chan *nav.File) {
@@ -43,6 +53,12 @@ func loadFile(path string, fileChan chan *nav.File) {
 	fileChan <- &file
 }
 
+var AvailableCommands = []string{
+	"open",
+	"c", "continue",
+	"n", "next",
+	"q", "quit",
+}
 
 func StringToLineCommand(s string, args []string) LineCommand {
 	log.Printf("Parsed command '%s %v'", s, args)
@@ -53,6 +69,8 @@ func StringToLineCommand(s string, args []string) LineCommand {
 		}
 	case "c", "continue":
 		return &Continue{}
+	case "n", "next":
+		return &Next{}
 	case "q", "quit":
 		return &Quit{}
 	}
@@ -81,27 +99,69 @@ func (commandHandler *CommandHandler) RunCommand( cmd LineCommand ) {
 	go cmd.run( commandHandler.view, commandHandler.app, commandHandler.rpcClient )
 }
 
+func applyPrefix(pfx string, arr []string) []string {
+	res := []string{}
+	for _, v := range arr {
+		res = append(res, pfx + v)
+	}
+	return res
+}
+
+func substractPrefix(pfx string, arr []string) []string {
+	res := []string{}
+	for _, v := range arr {
+		if strings.HasPrefix(v,pfx) {
+			res = append(res, v[len(pfx) + 1:])
+		}
+	}
+	return res
+}
+
+func filter(f string, arr []string) []string {
+	res := []string{}
+	for _, v := range arr {
+		if strings.HasPrefix(v,f) {
+			res = append(res, v)
+		}
+	}
+	return res
+}
+
+func (commandHandler *CommandHandler) GetSuggestions(input string) []string {
+	allArgs := strings.Fields(input)
+	s := ""
+	if len(allArgs) > 0 {
+		s = allArgs[0]
+	}
+	switch s {
+	case "open":
+		opts := applyPrefix(s + " ",
+			substractPrefix(
+				commandHandler.view.navState.ProjectPath,
+				commandHandler.view.navState.SourceFiles,
+			),
+		)
+		return filter(input, opts)
+	case "c", "continue":
+		break
+	}
+	return filter(s, AvailableCommands)
+}
+
 type CreateBreakpoint struct {
 	Line int
 	File string
 }
 
 func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
-	// TODO: make configurable
-	config := api.LoadConfig{
-		FollowPointers: true,
-		MaxVariableRecurse: 10,
-		MaxStringLen: 999,
-		MaxArrayValues: 999,
-		MaxStructFields: -1,
-	}
 	log.Printf("Creating bp in %s at line %d\n",cmd.File, cmd.Line)
+
 	res, err := client.CreateBreakpoint(&api.Breakpoint{
 		File: cmd.File,
 		Line: cmd.Line,
 		Goroutine: true,
-		LoadLocals: &config,
-		LoadArgs: &config,
+		LoadLocals: &defaultConfig,
+		LoadArgs: &defaultConfig,
 	})
 
 	if err != nil {
@@ -154,7 +214,14 @@ type Continue struct {
 }
 
 func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+
 	res := <- client.Continue()
+	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID,5,api.StacktraceSimple,&defaultConfig)
+
+	if serr != nil {
+		log.Printf("rpc error:%s\n",serr.Error())
+		return
+	}
 
 	if res.Exited {
 		log.Printf("Program has finished with exit status %d.", res.ExitStatus)
@@ -162,7 +229,7 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 		return
 	}
 
-	view.dbgStateChan <- res
+	view.dbgMoveChan <- &DebuggerMove{res,nil,sres}
 }
 
 type GetBreakpoints struct {
@@ -177,4 +244,31 @@ func (cmd *GetBreakpoints) run(view *View, app *tview.Application, client *rpc2.
 	for i := range bps {
 		view.breakpointChan <- bps[i]
 	}
+}
+
+type Next struct {
+}
+
+func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+
+	nres, nerr := client.Next()
+	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID,5,api.StacktraceSimple,&defaultConfig)
+
+	if nerr != nil {
+		log.Printf("rpc error:%s\n",nerr.Error())
+		return
+	}
+	if serr != nil {
+		log.Printf("rpc error:%s\n",serr.Error())
+		return
+	}
+	if nres.Exited {
+		log.Printf("Program has finished with exit status %d.", nres.ExitStatus)
+		view.setProgramAsExited( nres.ExitStatus )
+		return
+	}
+
+	step := DebuggerStep{locals: sres[0].Locals, args: sres[0].Arguments}
+
+	view.dbgMoveChan <- &DebuggerMove{nres,&step,sres}
 }
