@@ -165,20 +165,17 @@ func (view *View) newFileLoop() {
 	}
 }
 
-func (view *View)setProgramAsExited(exitCode int) {
-	view.navState.CurrentBreakpoint = nil
-}
-
 func (view *View) dbgMoveLoop() {
 	for dbgMove := range view.dbgMoveChan {
 		newState := dbgMove.DbgState
 		line := newState.CurrentThread.Line
 		file := newState.CurrentThread.File
 		view.navState.DbgState = newState
+		view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: file, Line: line}
 
 		// Navigate to file at current line.
 		view.navState.ChangeCurrentFile(file)
-		view.scrollTo(line - 1) // Internally use zero based indices.
+		view.jumpTo(line - 1) // Internally use zero based indices.
 
 		// Store variables in current scope.
 		var args []api.Variable
@@ -193,7 +190,6 @@ func (view *View) dbgMoveLoop() {
 
 			// Update breakpoint that was hit
 			view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
-			view.navState.CurrentBreakpoint = newState.CurrentThread.Breakpoint
 
 			locals = newState.CurrentThread.BreakpointInfo.Locals
 			globals = newState.CurrentThread.BreakpointInfo.Variables
@@ -264,6 +260,14 @@ func (view *View) scrollTo(line int) {
 	view.navState.SetLine(line)
 }
 
+func (view *View) jumpTo(line int) {
+	if line < 0 || line >= view.navState.CurrentFile.LineCount {
+		return
+	}
+	view.textView.JumpTo(line)
+	view.navState.SetLine(line)
+}
+
 func (view *View) scrollDown() {
 	line := view.navState.CurrentLine() + 1
 	view.scrollTo(line)
@@ -275,12 +279,16 @@ func (view *View) scrollUp() {
 }
 
 func (view *View) scrollToTop() {
-	view.scrollTo(0)
+	view.jumpTo(0)
 }
 
 func (view *View) scrollToBottom() {
 	line := view.navState.CurrentFile.LineCount - 1
-	view.scrollTo(line)
+	view.jumpTo(line)
+}
+
+func (view *View) ReRender() {
+	view.textView.ReRender()
 }
 
 func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCClient) View {

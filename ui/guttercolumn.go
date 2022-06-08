@@ -6,7 +6,7 @@ import (
 )
 
 type GutterColumn interface {
-	Render(lineStart int, lineEnd int)
+	Render(lineStart int, lineEnd int, current int)
 	GetTextView() *tview.TextView
 }
 
@@ -19,11 +19,11 @@ func NewGutterColumn() *DefaultGC {
 	return &DefaultGC{ textView: tview.NewTextView() }
 }
 
-func (gc *DefaultGC) Render(lineStart int, lineEnd int) {
+func (gc *DefaultGC) Render(lineStart int, lineEnd int, current int) {
 	// Set line numbers in gutter.
 	lineNumbers := ""
 	for i := lineStart; i <= lineEnd; i++ {
-		if( i == lineStart) {
+		if( i == current) {
 			lineNumbers += fmt.Sprintf(`[black:white] %3d [-:-:-]`, i)
 		} else {
 			lineNumbers += fmt.Sprintf(` %3d `, i)

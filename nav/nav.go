@@ -14,9 +14,10 @@ type File struct {
 	PackageName string // TODO
 }
 
-type BreakPoint struct {
-	filename string
-	line     int
+type DebuggerPos struct {
+	File string
+	Line int
+
 }
 
 func (nav *Nav) CurrentLine() int {
@@ -53,7 +54,7 @@ type Nav struct {
 	// debugger
 	DbgState *api.DebuggerState
 	Breakpoints map[string] map[int]*api.Breakpoint
-	CurrentBreakpoint *api.Breakpoint
+	CurrentDebuggerPos DebuggerPos
 	CurrentStack []*api.Stackframe
 }
 

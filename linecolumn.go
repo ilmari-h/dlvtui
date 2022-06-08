@@ -22,19 +22,21 @@ func NewLineColumn(width int, navState *nav.Nav) *LineColumn {
 	}
 }
 
-func (lc *LineColumn) Render(lineStart int, lineEnd int) {
+func (lc *LineColumn) Render(lineStart int, lineEnd int, current int) {
 	// Set line numbers in gutter.
 	lineNumbers := ""
 	breakpoints := lc.navState.Breakpoints[lc.navState.CurrentFile.Path]
 	for i := lineStart; i <= lineEnd; i++ {
 		bp := " "
-		if lc.navState.CurrentBreakpoint != nil && lc.navState.CurrentBreakpoint.Line == i {
-			bp = "●"
-		} else if _, ok := breakpoints[i] ; ok {
+		if _, ok := breakpoints[i] ; ok {
 			bp = "○"
 		}
 
-		if( i == lineStart) { // TODO: use current line
+		if i == lc.navState.CurrentDebuggerPos.Line &&
+			lc.navState.CurrentFile.Path == lc.navState.CurrentDebuggerPos.File  {
+
+			lineNumbers += fmt.Sprintf(`[black:red]%s%*d [-:-:-]`,bp, lc.width -2, i)
+		} else if( i == current) {
 			lineNumbers += fmt.Sprintf(`[black:white]%s%*d [-:-:-]`,bp, lc.width -2, i)
 		} else {
 			lineNumbers += fmt.Sprintf(`%s%*d `,bp,lc.width - 2, i)

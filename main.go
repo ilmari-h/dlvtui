@@ -8,8 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
+	"syscall"
 
 	"dlvtui/dlvrpc"
 	"dlvtui/nav"
@@ -18,19 +18,7 @@ import (
 	"github.com/rivo/tview"
 )
 
-func killProcess(pid int) {
-	_, err := exec.Command(
-		"kill",
-		strconv.Itoa(pid),
-	).Output()
-	if err != nil {
-		log.Printf("Error terminating dlv-backend process at pid %d", pid)
-	} else {
-		log.Printf("Terminated dlv-backend process at pid %d", pid)
-	}
-}
-
-func startDebugger(executable string, exArgs []string, port string) int {
+func execDebuggerCmd(executable string, exArgs []string, port string) []string {
 	log.Printf("Debugging executable at path: %s",executable)
 	allArgs := []string{
 		"exec",
@@ -44,11 +32,35 @@ func startDebugger(executable string, exArgs []string, port string) int {
 		allArgs = append(allArgs, "--")
 		allArgs = append(allArgs, exArgs...)
 	}
-	log.Printf("Starting dlv-backend:\ndlv %s", strings.Join(allArgs, " "))
+	return allArgs
+
+}
+func attachDebuggerCmd(pid string, exArgs []string, port string) []string {
+	log.Printf("Debugging process with PID: %s",pid)
+	allArgs := []string{
+		"attach",
+		"--headless",
+		"--api-version=2",
+		"--listen=127.0.0.1:" + port,
+		"--accept-multiclient",
+		pid,
+	}
+	if exArgs != nil && len(exArgs) > 0 {
+		allArgs = append(allArgs, "--")
+		allArgs = append(allArgs, exArgs...)
+	}
+	return allArgs
+}
+
+func startDebugger(commandArgs []string) int {
+	log.Printf("Starting dlv-backend:\ndlv %s", strings.Join(commandArgs, " "))
 	cmd := exec.Command(
 		"dlv",
-		allArgs...,
+		commandArgs...,
 	)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
 	stdout, _ := cmd.StdoutPipe()
 	if err := cmd.Start(); err != nil {
 		log.Printf("Error starting dlv-backend:\n%s", string(err.Error()))
@@ -108,7 +120,7 @@ func main() {
 
 	exFlags.Parse(os.Args[2:])
 
-	excPath, _ := filepath.Abs(os.Args[1])
+	target := os.Args[1]
 	dir, _ := filepath.Abs(dir)
 	log.Printf("Using dir: %s", dir)
 
@@ -118,7 +130,13 @@ func main() {
 	clientC := make(chan *rpc2.RPCClient)
 	filesListC := make(chan []string)
 
-	defer killProcess(startDebugger(excPath, []string{}, port))
+	if attachMode {
+		startDebugger( attachDebuggerCmd(target, []string{}, port) )
+	} else {
+		targetFile, _ := filepath.Abs( target )
+		startDebugger( execDebuggerCmd(targetFile, []string{}, port) )
+	}
+
 	go dlvrpc.NewClient("127.0.0.1:"+port, clientC)
 	go getFileList(dir, filesListC)
 

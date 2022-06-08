@@ -215,6 +215,10 @@ type Continue struct {
 
 func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
+	// Reset debugger position for a pending continue and then re-render.
+	view.navState.CurrentDebuggerPos = nav.DebuggerPos{ File: "", Line: -1 }
+	view.ReRender()
+
 	res := <- client.Continue()
 	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID,5,api.StacktraceSimple,&defaultConfig)
 
@@ -225,7 +229,6 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 
 	if res.Exited {
 		log.Printf("Program has finished with exit status %d.", res.ExitStatus)
-		view.setProgramAsExited( res.ExitStatus )
 		return
 	}
 
@@ -264,7 +267,6 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 	}
 	if nres.Exited {
 		log.Printf("Program has finished with exit status %d.", nres.ExitStatus)
-		view.setProgramAsExited( nres.ExitStatus )
 		return
 	}
 
