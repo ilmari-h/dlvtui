@@ -24,17 +24,22 @@ func (nav *Nav) CurrentLine() int {
 	return nav.CurrentLines[nav.CurrentFile.Path]
 }
 
-func (nav *Nav) SetLine(line int) {
-	nav.CurrentLines[nav.CurrentFile.Path] = line
+func (nav *Nav) SetLine(line int) int {
+	if line >= 0 && line < nav.CurrentFile.LineCount - 1 {
+		nav.CurrentLines[nav.CurrentFile.Path] = line
+		return line
+	}
+	return nav.CurrentLines[nav.CurrentFile.Path]
 }
 
-func (nav *Nav) EnterNewFile(file *File) {
+func (nav *Nav) EnterNewFile(file *File) int {
 	if _, ok := nav.CurrentLines[file.Path]; !ok {
 		nav.CurrentLines[file.Path] = 0
 	}
 	nav.CurrentLines[file.Path] = 0
 	nav.FileCache[file.Path] = file
 	nav.CurrentFile = file
+	return nav.CurrentLine()
 }
 
 func (nav *Nav) ChangeCurrentFile(filePath string){

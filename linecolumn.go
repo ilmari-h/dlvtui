@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"dlvtui/nav"
 
@@ -23,6 +24,10 @@ func NewLineColumn(width int, navState *nav.Nav) *LineColumn {
 }
 
 func (lc *LineColumn) Render(lineStart int, lineEnd int, current int) {
+	if lc.navState == nil || lc.navState.CurrentFile == nil {
+		return
+	}
+
 	// Set line numbers in gutter.
 	lineNumbers := ""
 	breakpoints := lc.navState.Breakpoints[lc.navState.CurrentFile.Path]

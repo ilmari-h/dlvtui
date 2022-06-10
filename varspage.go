@@ -1,4 +1,4 @@
-package ui
+package main
 
 import (
 	"fmt"
@@ -8,8 +8,9 @@ import (
 	"github.com/rivo/tview"
 )
 
-type VarsView struct {
-	tree *tview.TreeView
+type VarsPage struct {
+	commandHandler *CommandHandler
+	treeView *tview.TreeView
 	globals *tview.TreeNode
 	locals *tview.TreeNode
 	args *tview.TreeNode
@@ -18,7 +19,7 @@ type VarsView struct {
 	expandedCache map[uint64]bool
 }
 
-func NewVarsView() *VarsView {
+func NewVarPage() *VarsPage {
 	gHeader := tview.NewTreeNode("globals").SetColor(tcell.Color101).SetSelectable(true)
 	lHeader := tview.NewTreeNode("locals").SetColor(tcell.Color101).SetSelectable(true)
 	aHeader := tview.NewTreeNode("args").SetColor(tcell.Color101).SetSelectable(true)
@@ -33,8 +34,8 @@ func NewVarsView() *VarsView {
 	topHeader.AddChild(aHeader)
 	topHeader.AddChild(rHeader)
 
-	return &VarsView{
-		tree: tree,
+	return &VarsPage{
+		treeView: tree,
 		globals: gHeader,
 		locals: lHeader,
 		args: aHeader,
@@ -42,15 +43,15 @@ func NewVarsView() *VarsView {
 	}
 }
 
-func (varsView *VarsView)RenderDebuggerMove(args []api.Variable, locals []api.Variable, globals []api.Variable, returns []api.Variable) {
+func (page *VarsPage)RenderDebuggerMove(args []api.Variable, locals []api.Variable, globals []api.Variable, returns []api.Variable) {
 
-	varsView.locals.ClearChildren()
-	varsView.args.ClearChildren()
-	varsView.globals.ClearChildren()
+	page.locals.ClearChildren()
+	page.args.ClearChildren()
+	page.globals.ClearChildren()
 
-	varsView.AddVars(varsView.locals, locals)
-	varsView.AddVars(varsView.args, args)
-	varsView.AddVars(varsView.globals, globals)
+	page.AddVars(page.locals, locals)
+	page.AddVars(page.args, args)
+	page.AddVars(page.globals, globals)
 }
 
 func getVarTitle(vr *api.Variable, expanded bool) string {
@@ -71,35 +72,49 @@ func getVarTitle(vr *api.Variable, expanded bool) string {
 	return namestr + typestr + valstr + suffix
 }
 
-func (varsView *VarsView)AddVars(parent *tview.TreeNode, vars []api.Variable ){
+func (page *VarsPage)AddVars(parent *tview.TreeNode, vars []api.Variable ){
 	for vi := range vars {
 		vr := vars[vi]
-		newNode := tview.NewTreeNode( getVarTitle(&vr, varsView.expandedCache[vr.Addr]) ).
+		newNode := tview.NewTreeNode( getVarTitle(&vr, page.expandedCache[vr.Addr]) ).
 			SetReference(vr)
 		newNode.SetSelectable(true)
 		newNode.SetColor(tcell.ColorBlack)
 
 		// If node has children, initially collapse. Expand on select.
 		if vr.Children != nil && len(vr.Children) > 0 {
-			varsView.AddVars(newNode, vr.Children)
-			if !varsView.expandedCache[vr.Addr] {
+			page.AddVars(newNode, vr.Children)
+			if !page.expandedCache[vr.Addr] {
 				newNode.CollapseAll()
 			}
 			newNode.SetSelectedFunc(func() {
-				varsView.expandedCache[vr.Addr] = !newNode.IsExpanded()
+				page.expandedCache[vr.Addr] = !newNode.IsExpanded()
 				r := newNode.GetReference().(api.Variable);
 				if !newNode.IsExpanded() {
 					newNode.Expand()
 				} else {
 					newNode.Collapse()
 				}
-				newNode.SetText( getVarTitle(&r, varsView.expandedCache[vr.Addr] ) )
+				newNode.SetText( getVarTitle(&r, page.expandedCache[vr.Addr] ) )
 			})
 		}
 		parent.AddChild(newNode)
 	}
 }
 
-func (varsView *VarsView) GetWidget() *tview.TreeView {
-	return varsView.tree
+func (varsView *VarsPage) GetName() string {
+	return "vars"
+}
+
+func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
+	handler := page.treeView.InputHandler()
+	handler(event, func(p tview.Primitive) {})
+	return nil
+}
+
+func (page *VarsPage) SetCommandHandler(ch *CommandHandler) {
+	page.commandHandler = ch
+}
+
+func (page *VarsPage) GetWidget() tview.Primitive {
+	return page.treeView
 }

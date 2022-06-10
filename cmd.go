@@ -184,7 +184,6 @@ func (cmd *OpenFile) run(view *View, app *tview.Application, client *rpc2.RPCCli
 		view.fileChan <- val
 		return
 	}
-	app.SetFocus(view.textView)
 	go loadFile(absPath, view.fileChan)
 }
 
@@ -217,7 +216,6 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 
 	// Reset debugger position for a pending continue and then re-render.
 	view.navState.CurrentDebuggerPos = nav.DebuggerPos{ File: "", Line: -1 }
-	view.ReRender()
 
 	res := <- client.Continue()
 	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID,5,api.StacktraceSimple,&defaultConfig)
