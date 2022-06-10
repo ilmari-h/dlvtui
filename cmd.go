@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"dlvtui/nav"
 	"log"
 	"os"
-	"bufio"
-	"strings"
 	"path/filepath"
-	"dlvtui/nav"
+	"strings"
 
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
@@ -15,11 +15,11 @@ import (
 
 // TODO: make configurable
 var defaultConfig = api.LoadConfig{
-	FollowPointers: true,
+	FollowPointers:     true,
 	MaxVariableRecurse: 10,
-	MaxStringLen: 999,
-	MaxArrayValues: 999,
-	MaxStructFields: -1,
+	MaxStringLen:       999,
+	MaxArrayValues:     999,
+	MaxStructFields:    -1,
 }
 
 // Read file from disk.
@@ -78,31 +78,31 @@ func StringToLineCommand(s string, args []string) LineCommand {
 }
 
 type CommandHandler struct {
-	view *View
-	app *tview.Application
+	view      *View
+	app       *tview.Application
 	rpcClient *rpc2.RPCClient
 }
 
 type LineCommand interface {
-	run( *View, *tview.Application, *rpc2.RPCClient )
+	run(*View, *tview.Application, *rpc2.RPCClient)
 }
 
 func NewCommandHandler(view *View, app *tview.Application, client *rpc2.RPCClient) *CommandHandler {
 	return &CommandHandler{
-		view: view,
-		app: app,
+		view:      view,
+		app:       app,
 		rpcClient: client,
 	}
 }
 
-func (commandHandler *CommandHandler) RunCommand( cmd LineCommand ) {
-	go cmd.run( commandHandler.view, commandHandler.app, commandHandler.rpcClient )
+func (commandHandler *CommandHandler) RunCommand(cmd LineCommand) {
+	go cmd.run(commandHandler.view, commandHandler.app, commandHandler.rpcClient)
 }
 
 func applyPrefix(pfx string, arr []string) []string {
 	res := []string{}
 	for _, v := range arr {
-		res = append(res, pfx + v)
+		res = append(res, pfx+v)
 	}
 	return res
 }
@@ -110,8 +110,8 @@ func applyPrefix(pfx string, arr []string) []string {
 func substractPrefix(pfx string, arr []string) []string {
 	res := []string{}
 	for _, v := range arr {
-		if strings.HasPrefix(v,pfx) {
-			res = append(res, v[len(pfx) + 1:])
+		if strings.HasPrefix(v, pfx) {
+			res = append(res, v[len(pfx)+1:])
 		}
 	}
 	return res
@@ -120,7 +120,7 @@ func substractPrefix(pfx string, arr []string) []string {
 func filter(f string, arr []string) []string {
 	res := []string{}
 	for _, v := range arr {
-		if strings.HasPrefix(v,f) {
+		if strings.HasPrefix(v, f) {
 			res = append(res, v)
 		}
 	}
@@ -135,7 +135,7 @@ func (commandHandler *CommandHandler) GetSuggestions(input string) []string {
 	}
 	switch s {
 	case "open":
-		opts := applyPrefix(s + " ",
+		opts := applyPrefix(s+" ",
 			substractPrefix(
 				commandHandler.view.navState.ProjectPath,
 				commandHandler.view.navState.SourceFiles,
@@ -154,39 +154,43 @@ type CreateBreakpoint struct {
 }
 
 func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
-	log.Printf("Creating bp in %s at line %d\n",cmd.File, cmd.Line)
+	log.Printf("Creating bp in %s at line %d\n", cmd.File, cmd.Line)
 
 	res, err := client.CreateBreakpoint(&api.Breakpoint{
-		File: cmd.File,
-		Line: cmd.Line,
-		Goroutine: true,
+		File:       cmd.File,
+		Line:       cmd.Line,
+		Goroutine:  true,
 		LoadLocals: &defaultConfig,
-		LoadArgs: &defaultConfig,
+		LoadArgs:   &defaultConfig,
 	})
 
 	if err != nil {
-		log.Printf("rpc error:%s\n",err.Error())
+		log.Printf("rpc error:%s\n", err.Error())
 		return
 	}
 	view.breakpointChan <- res
 }
 
 type OpenFile struct {
-	File string
+	File   string
+	AtLine int
 }
 
 func (cmd *OpenFile) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
 	// Check cache or open new file.
-	absPath :=  filepath.Join(view.navState.ProjectPath, cmd.File)
+	absPath := cmd.File
+	if !filepath.IsAbs(cmd.File) {
+		absPath = filepath.Join(view.navState.ProjectPath, cmd.File)
+	}
 	log.Printf("Opening file %s", absPath)
+	view.navState.CurrentLines[absPath] = cmd.AtLine
 	if val, ok := view.navState.FileCache[absPath]; ok {
 		view.fileChan <- val
 		return
 	}
 	go loadFile(absPath, view.fileChan)
 }
-
 
 type ClearBreakpoint struct {
 	Breakpoint *api.Breakpoint
@@ -195,7 +199,7 @@ type ClearBreakpoint struct {
 func (cmd *ClearBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	res, err := client.ClearBreakpoint(cmd.Breakpoint.ID)
 	if err != nil {
-		log.Printf("rpc error:%s\n",err.Error())
+		log.Printf("rpc error:%s\n", err.Error())
 		return
 	}
 	res.ID = -1 // Deleted
@@ -215,13 +219,13 @@ type Continue struct {
 func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
 	// Reset debugger position for a pending continue and then re-render.
-	view.navState.CurrentDebuggerPos = nav.DebuggerPos{ File: "", Line: -1 }
+	view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: "", Line: -1}
 
-	res := <- client.Continue()
-	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID,5,api.StacktraceSimple,&defaultConfig)
+	res := <-client.Continue()
+	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if serr != nil {
-		log.Printf("rpc error:%s\n",serr.Error())
+		log.Printf("rpc error:%s\n", serr.Error())
 		return
 	}
 
@@ -230,7 +234,7 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 		return
 	}
 
-	view.dbgMoveChan <- &DebuggerMove{res,nil,sres}
+	view.dbgMoveChan <- &DebuggerMove{res, nil, sres}
 }
 
 type GetBreakpoints struct {
@@ -239,7 +243,7 @@ type GetBreakpoints struct {
 func (cmd *GetBreakpoints) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	bps, err := client.ListBreakpoints(true)
 	if err != nil {
-		log.Printf("rpc error:%s\n",err.Error())
+		log.Printf("rpc error:%s\n", err.Error())
 		return
 	}
 	for i := range bps {
@@ -253,14 +257,14 @@ type Next struct {
 func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
 	nres, nerr := client.Next()
-	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID,5,api.StacktraceSimple,&defaultConfig)
+	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if nerr != nil {
-		log.Printf("rpc error:%s\n",nerr.Error())
+		log.Printf("rpc error:%s\n", nerr.Error())
 		return
 	}
 	if serr != nil {
-		log.Printf("rpc error:%s\n",serr.Error())
+		log.Printf("rpc error:%s\n", serr.Error())
 		return
 	}
 	if nres.Exited {
@@ -270,5 +274,5 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 
 	step := DebuggerStep{locals: sres[0].Locals, args: sres[0].Arguments}
 
-	view.dbgMoveChan <- &DebuggerMove{nres,&step,sres}
+	view.dbgMoveChan <- &DebuggerMove{nres, &step, sres}
 }

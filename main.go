@@ -19,7 +19,7 @@ import (
 )
 
 func execDebuggerCmd(executable string, exArgs []string, port string) []string {
-	log.Printf("Debugging executable at path: %s",executable)
+	log.Printf("Debugging executable at path: %s", executable)
 	allArgs := []string{
 		"exec",
 		"--headless",
@@ -36,7 +36,7 @@ func execDebuggerCmd(executable string, exArgs []string, port string) []string {
 
 }
 func attachDebuggerCmd(pid string, exArgs []string, port string) []string {
-	log.Printf("Debugging process with PID: %s",pid)
+	log.Printf("Debugging process with PID: %s", pid)
 	allArgs := []string{
 		"attach",
 		"--headless",
@@ -97,22 +97,22 @@ func getFileList(projectRoot string, filesList chan []string) {
 }
 
 var (
-	port string
-	dir string
+	port       string
+	dir        string
 	attachMode bool
 )
 
 func main() {
 
 	// Parse flags after first argument.
-	exFlags := flag.NewFlagSet("",flag.ExitOnError)
+	exFlags := flag.NewFlagSet("", flag.ExitOnError)
 	exFlags.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
 	exFlags.StringVar(&dir, "dir", "./", "Source code directory.")
 	exFlags.BoolVar(&attachMode, "attach", false, "If enabled, attach debugger to process. Interpret first argument as PID.")
 
-	if len( os.Args ) < 2 {
-		fmt.Println("No debug target provided.\n"+
-		"The first argument should be an executable or a PID if the flag `attach` is set.")
+	if len(os.Args) < 2 {
+		fmt.Println("No debug target provided.\n" +
+			"The first argument should be an executable or a PID if the flag `attach` is set.")
 		exFlags.Usage()
 		os.Exit(1)
 		return
@@ -131,10 +131,10 @@ func main() {
 	filesListC := make(chan []string)
 
 	if attachMode {
-		startDebugger( attachDebuggerCmd(target, []string{}, port) )
+		startDebugger(attachDebuggerCmd(target, []string{}, port))
 	} else {
-		targetFile, _ := filepath.Abs( target )
-		startDebugger( execDebuggerCmd(targetFile, []string{}, port) )
+		targetFile, _ := filepath.Abs(target)
+		startDebugger(execDebuggerCmd(targetFile, []string{}, port))
 	}
 
 	go dlvrpc.NewClient("127.0.0.1:"+port, clientC)

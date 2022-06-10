@@ -10,7 +10,7 @@ import (
 
 type StackPage struct {
 	commandHandler *CommandHandler
-	listView *tview.List
+	listView       *tview.List
 }
 
 func NewStackPage() *StackPage {
@@ -26,9 +26,15 @@ func (sv *StackPage) RenderStack(stack []api.Stackframe) {
 	for i, frame := range stack {
 		sv.listView.AddItem(
 			frame.Function.Name(),
-			fmt.Sprintf("%s[white]:%d",frame.File,frame.Line),
+			fmt.Sprintf("%s[white]:%d", frame.File, frame.Line),
 			rune(48+i),
-		nil)
+			nil).
+			SetSelectedFunc(func(i int, s1, s2 string, r rune) {
+				sv.commandHandler.RunCommand(&OpenFile{
+					File:   stack[i].File,
+					AtLine: stack[i].Line - 1,
+				})
+			})
 	}
 }
 

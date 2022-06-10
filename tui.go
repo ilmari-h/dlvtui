@@ -25,33 +25,33 @@ type KeyPress struct {
 }
 
 type DebuggerStep struct {
-	locals []api.Variable
-	args []api.Variable
+	locals  []api.Variable
+	args    []api.Variable
 	globals []api.Variable
 }
 
 type DebuggerMove struct {
 	DbgState *api.DebuggerState
-	DbgStep *DebuggerStep
-	Stack []api.Stackframe
+	DbgStep  *DebuggerStep
+	Stack    []api.Stackframe
 }
 
 type View struct {
 	commandChan chan string
 	keyHandler  KeyHandler
 	currentMode Mode
-	fileChan   chan *nav.File
+	fileChan    chan *nav.File
 
-	pageView      *PageView
-	masterView *tview.Flex
+	pageView    *PageView
+	masterView  *tview.Flex
 	currentPage int
 
-	cmdLine         *tview.InputField
-	cmdHandler      *CommandHandler
+	cmdLine    *tview.InputField
+	cmdHandler *CommandHandler
 
-	dbgMoveChan chan *DebuggerMove
+	dbgMoveChan    chan *DebuggerMove
 	breakpointChan chan *api.Breakpoint
-	navState          *nav.Nav
+	navState       *nav.Nav
 }
 
 func parseCommand(input string) LineCommand {
@@ -62,9 +62,9 @@ func parseCommand(input string) LineCommand {
 }
 
 type KeyHandler struct {
-	app             *tview.Application
-	view            *View
-	prevKey         *tcell.EventKey
+	app     *tview.Application
+	view    *View
+	prevKey *tcell.EventKey
 }
 
 func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
@@ -98,6 +98,14 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 func (view *View) fileLoop() {
 	for newFile := range view.fileChan {
 		view.pageView.LoadFile(newFile)
+
+		// Load variables for current file if in stack.
+		for _, sf := range view.navState.CurrentStack {
+			if sf.File == newFile.Path {
+				view.pageView.RenderStack(&sf)
+				break
+			}
+		}
 	}
 }
 
@@ -112,11 +120,12 @@ func (view *View) dbgMoveLoop() {
 		// Navigate to file at current line.
 		view.navState.ChangeCurrentFile(file)
 		view.navState.SetLine(line - 1)
+		view.navState.CurrentStack = dbgMove.Stack
 
 		// If hit breakpoint.
 		if newState.CurrentThread.BreakpointInfo != nil {
 
-			log.Printf("Hit breakpoint in %s on line %d!",file,line)
+			log.Printf("Hit breakpoint in %s on line %d!", file, line)
 
 			// Update breakpoint that was hit
 			view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
@@ -130,7 +139,7 @@ func (view *View) dbgMoveLoop() {
 func (view *View) breakpointLoop() {
 	for newBp := range view.breakpointChan {
 
-		log.Printf("Got breakpoint in %s on line %d!",newBp.File, newBp.Line)
+		log.Printf("Got breakpoint in %s on line %d!", newBp.File, newBp.Line)
 		// ID -1 signifies deleted breakpoint
 		if newBp.ID == -1 {
 			delete(view.navState.Breakpoints[newBp.File], newBp.Line)
@@ -157,7 +166,7 @@ func (view *View) toNormalMode() {
 }
 
 func (view *View) toCmdMode() {
-	view.cmdLine.SetAutocompleteFunc( view.cmdHandler.GetSuggestions )
+	view.cmdLine.SetAutocompleteFunc(view.cmdHandler.GetSuggestions)
 	view.cmdLine.SetLabel(":")
 	view.keyHandler.app.SetFocus(view.cmdLine)
 	view.currentMode = Cmd
@@ -166,17 +175,17 @@ func (view *View) toCmdMode() {
 func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCClient) View {
 
 	var view = View{
-		commandChan:       make(chan string, 1024),
-		fileChan:          make(chan *nav.File, 1024),
-		dbgMoveChan: make(chan *DebuggerMove, 1024),
+		commandChan:    make(chan string, 1024),
+		fileChan:       make(chan *nav.File, 1024),
+		dbgMoveChan:    make(chan *DebuggerMove, 1024),
 		breakpointChan: make(chan *api.Breakpoint, 1024),
-		navState:          navState,
-		currentMode:       Normal,
-		pageView: nil,
+		navState:       navState,
+		currentMode:    Normal,
+		pageView:       nil,
 	}
 
-	view.cmdHandler= NewCommandHandler(&view, app, rpcClient)
-	view.pageView = NewPageView( view.cmdHandler, navState, app )
+	view.cmdHandler = NewCommandHandler(&view, app, rpcClient)
+	view.pageView = NewPageView(view.cmdHandler, navState, app)
 	view.keyHandler = KeyHandler{app: app, view: &view}
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -194,7 +203,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 	commandLine.SetBackgroundColor(tcell.ColorDefault)
 	commandLine.SetFieldBackgroundColor(tcell.ColorDefault)
 
-	flex.AddItem( view.pageView.GetWidget(), 0, 1, false )
+	flex.AddItem(view.pageView.GetWidget(), 0, 1, false)
 	flex.AddItem(commandLine, 1, 1, false)
 
 	app.SetRoot(flex, true).SetFocus(flex)

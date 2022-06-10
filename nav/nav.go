@@ -36,7 +36,6 @@ func (nav *Nav) EnterNewFile(file *File) int {
 	if _, ok := nav.CurrentLines[file.Path]; !ok {
 		nav.CurrentLines[file.Path] = 0
 	}
-	nav.CurrentLines[file.Path] = 0
 	nav.FileCache[file.Path] = file
 	nav.CurrentFile = file
 	return nav.CurrentLine()
@@ -60,7 +59,7 @@ type Nav struct {
 	DbgState *api.DebuggerState
 	Breakpoints map[string] map[int]*api.Breakpoint
 	CurrentDebuggerPos DebuggerPos
-	CurrentStack []*api.Stackframe
+	CurrentStack []api.Stackframe
 }
 
 // Load saved session

@@ -10,11 +10,11 @@ import (
 
 type VarsPage struct {
 	commandHandler *CommandHandler
-	treeView *tview.TreeView
-	globals *tview.TreeNode
-	locals *tview.TreeNode
-	args *tview.TreeNode
-	returns *tview.TreeNode
+	treeView       *tview.TreeView
+	globals        *tview.TreeNode
+	locals         *tview.TreeNode
+	args           *tview.TreeNode
+	returns        *tview.TreeNode
 
 	expandedCache map[uint64]bool
 }
@@ -35,15 +35,15 @@ func NewVarPage() *VarsPage {
 	topHeader.AddChild(rHeader)
 
 	return &VarsPage{
-		treeView: tree,
-		globals: gHeader,
-		locals: lHeader,
-		args: aHeader,
+		treeView:      tree,
+		globals:       gHeader,
+		locals:        lHeader,
+		args:          aHeader,
 		expandedCache: make(map[uint64]bool),
 	}
 }
 
-func (page *VarsPage)RenderDebuggerMove(args []api.Variable, locals []api.Variable, globals []api.Variable, returns []api.Variable) {
+func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable, globals []api.Variable, returns []api.Variable) {
 
 	page.locals.ClearChildren()
 	page.args.ClearChildren()
@@ -56,7 +56,7 @@ func (page *VarsPage)RenderDebuggerMove(args []api.Variable, locals []api.Variab
 
 func getVarTitle(vr *api.Variable, expanded bool) string {
 	namestr := fmt.Sprintf("[green::b]%s", vr.Name)
-	typestr := fmt.Sprintf("[purple]<%s>[white:-:-]",vr.RealType)
+	typestr := fmt.Sprintf("[purple]<%s>[white:-:-]", vr.RealType)
 	valstr := ""
 	if vr.Value != "" {
 		valstr += fmt.Sprintf(" %s", vr.Value)
@@ -72,10 +72,10 @@ func getVarTitle(vr *api.Variable, expanded bool) string {
 	return namestr + typestr + valstr + suffix
 }
 
-func (page *VarsPage)AddVars(parent *tview.TreeNode, vars []api.Variable ){
+func (page *VarsPage) AddVars(parent *tview.TreeNode, vars []api.Variable) {
 	for vi := range vars {
 		vr := vars[vi]
-		newNode := tview.NewTreeNode( getVarTitle(&vr, page.expandedCache[vr.Addr]) ).
+		newNode := tview.NewTreeNode(getVarTitle(&vr, page.expandedCache[vr.Addr])).
 			SetReference(vr)
 		newNode.SetSelectable(true)
 		newNode.SetColor(tcell.ColorBlack)
@@ -88,13 +88,13 @@ func (page *VarsPage)AddVars(parent *tview.TreeNode, vars []api.Variable ){
 			}
 			newNode.SetSelectedFunc(func() {
 				page.expandedCache[vr.Addr] = !newNode.IsExpanded()
-				r := newNode.GetReference().(api.Variable);
+				r := newNode.GetReference().(api.Variable)
 				if !newNode.IsExpanded() {
 					newNode.Expand()
 				} else {
 					newNode.Collapse()
 				}
-				newNode.SetText( getVarTitle(&r, page.expandedCache[vr.Addr] ) )
+				newNode.SetText(getVarTitle(&r, page.expandedCache[vr.Addr]))
 			})
 		}
 		parent.AddChild(newNode)

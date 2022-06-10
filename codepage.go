@@ -9,17 +9,16 @@ import (
 
 type CodePage struct {
 	commandHandler *CommandHandler
-	navState     *nav.Nav
-	flex         *tview.Flex
-	perfTextView *PerfTextView
-	gutterColumn GutterColumn
+	navState       *nav.Nav
+	flex           *tview.Flex
+	perfTextView   *PerfTextView
+	gutterColumn   GutterColumn
 }
-
 
 func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 
 	textView := NewPerfTextView()
-	lineColumn := NewLineColumn(5,navState)
+	lineColumn := NewLineColumn(5, navState)
 	textView.SetGutterColumn(lineColumn)
 	lineColumn.textView.
 		SetRegions(true).
@@ -32,11 +31,11 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 	textView.SetText("")
 
 	flex := tview.NewFlex().SetDirection(tview.FlexColumn).
-			AddItem(lineColumn.textView, lineColumn.width, 1, false).
-			AddItem(textView, 0, 1, false)
+		AddItem(lineColumn.textView, lineColumn.width, 1, false).
+		AddItem(textView, 0, 1, false)
 	return &CodePage{
-		navState: navState,
-		flex: flex,
+		navState:     navState,
+		flex:         flex,
 		perfTextView: textView,
 		gutterColumn: lineColumn,
 	}
@@ -63,26 +62,26 @@ func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 	}
 	if rune == 'k' {
 		line := page.navState.SetLine(page.navState.CurrentLine() - 1)
-		page.perfTextView.scrollTo(line,false)
+		page.perfTextView.scrollTo(line, false)
 		return nil
 	}
 	if rune == 'g' {
 		line := page.navState.SetLine(0)
-		page.perfTextView.scrollTo(line,true)
+		page.perfTextView.scrollTo(line, true)
 		return nil
 	}
 	if rune == 'G' {
 		line := page.navState.SetLine(page.navState.CurrentFile.LineCount - 2)
-		page.perfTextView.scrollTo(line,true)
+		page.perfTextView.scrollTo(line, true)
 		return nil
 	}
 	if rune == 'b' {
 		bps := page.navState.Breakpoints
 		// If breakpoint on this line, remove it.
-		if len( bps[page.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
-			if bp, ok := bps[page.navState.CurrentFile.Path][page.navState.CurrentLine() + 1] ; ok {
-				page.commandHandler.RunCommand(&ClearBreakpoint{ bp })
-				return nil;
+		if len(bps[page.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
+			if bp, ok := bps[page.navState.CurrentFile.Path][page.navState.CurrentLine()+1]; ok {
+				page.commandHandler.RunCommand(&ClearBreakpoint{bp})
+				return nil
 			}
 		}
 
