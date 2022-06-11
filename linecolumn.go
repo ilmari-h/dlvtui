@@ -3,25 +3,33 @@ package main
 import (
 	"dlvtui/nav"
 	"fmt"
+	"strconv"
 
 	"github.com/rivo/tview"
 )
 
 type LineColumn struct {
-	width    int
+	width int
 	navState *nav.Nav
 	textView *tview.TextView
 }
 
+func getMaxLineColWidth(maxLine int ) int {
+	return len(strconv.Itoa(maxLine)) + 3
+}
+
 func NewLineColumn(width int, navState *nav.Nav) *LineColumn {
 	return &LineColumn{
-		width:    width,
 		navState: navState,
 		textView: tview.NewTextView(),
 	}
 }
 
-func (lc *LineColumn) Render(lineStart int, lineEnd int, current int) {
+func (lc *LineColumn) SetWidth(nw int) {
+	lc.width = nw
+}
+
+func (lc *LineColumn) Render(lineStart, lineEnd, current int) {
 	if lc.navState == nil || lc.navState.CurrentFile == nil {
 		return
 	}
@@ -39,7 +47,7 @@ func (lc *LineColumn) Render(lineStart int, lineEnd int, current int) {
 		if i == lc.navState.CurrentDebuggerPos.Line &&
 			lc.navState.CurrentFile.Path == lc.navState.CurrentDebuggerPos.File {
 
-			lineNumbers += fmt.Sprintf(`[black:red]%s%*d [-:-:-]`, bp, lc.width-2, i)
+			lineNumbers += fmt.Sprintf(`[black:green]%s%*d [-:-:-]`, bp, lc.width-2, i)
 		} else if i == current {
 			lineNumbers += fmt.Sprintf(`[black:white]%s%*d [-:-:-]`, bp, lc.width-2, i)
 		} else {

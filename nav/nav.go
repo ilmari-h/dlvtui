@@ -8,7 +8,6 @@ type File struct {
 	Name        string
 	Path        string
 	Content     string
-	Breakpoints []uint
 	LineCount   int
 	LineIndices []int
 	PackageName string // TODO
@@ -32,7 +31,7 @@ func (nav *Nav) SetLine(line int) int {
 	return nav.CurrentLines[nav.CurrentFile.Path]
 }
 
-func (nav *Nav) EnterNewFile(file *File) int {
+func (nav *Nav) EnterFile(file *File) int {
 	if _, ok := nav.CurrentLines[file.Path]; !ok {
 		nav.CurrentLines[file.Path] = 0
 	}
@@ -60,6 +59,7 @@ type Nav struct {
 	Breakpoints map[string] map[int]*api.Breakpoint
 	CurrentDebuggerPos DebuggerPos
 	CurrentStack []api.Stackframe
+	CurrentStackFrame *api.Stackframe
 }
 
 // Load saved session

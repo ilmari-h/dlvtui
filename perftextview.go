@@ -13,7 +13,7 @@ type PerfTextView struct {
 	virtualLine       int
 	scroll            int
 	fullText          string
-	gutterColumn      GutterColumn
+	lineColumn      *LineColumn
 	tview.TextView
 }
 
@@ -26,7 +26,12 @@ func NewPerfTextView() *PerfTextView {
 var offset = 5
 
 func (perfTextView *PerfTextView) ReRender() {
-	perfTextView.gutterColumn.Render(perfTextView.scroll+1, perfTextView.scroll+perfTextView.currentViewHeight, perfTextView.virtualLine)
+
+	perfTextView.lineColumn.Render(
+		perfTextView.scroll+1,
+		perfTextView.scroll+perfTextView.currentViewHeight,
+		perfTextView.virtualLine,
+	)
 }
 
 func (perfTextView *PerfTextView) scrollTo(line int, center bool) {
@@ -62,7 +67,7 @@ func (perfTextView *PerfTextView) scrollTo(line int, center bool) {
 		endIdx = perfTextView.lineIndices[scroll+perfTextView.currentViewHeight]
 	}
 
-	perfTextView.gutterColumn.Render(scroll+1, scroll+perfTextView.currentViewHeight, perfTextView.virtualLine)
+	perfTextView.lineColumn.Render(scroll+1, scroll+perfTextView.currentViewHeight, perfTextView.virtualLine)
 	perfTextView.SetText(perfTextView.fullText[startIdx:endIdx])
 }
 
@@ -90,10 +95,7 @@ func (perfTextView *PerfTextView) SetTextP(text string, lineIndices []int) {
 	perfTextView.SetText(text[:strIndx])
 }
 
-func (perfTextView *PerfTextView) SetGutterColumn(column GutterColumn) {
-	perfTextView.gutterColumn = column
+func (perfTextView *PerfTextView) SetLineColumn(column *LineColumn) {
+	perfTextView.lineColumn = column
 }
 
-func (perfTextView *PerfTextView) GetGutterColumn() *tview.TextView {
-	return perfTextView.gutterColumn.GetTextView()
-}

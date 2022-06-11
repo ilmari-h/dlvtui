@@ -21,28 +21,33 @@ func NewStackPage() *StackPage {
 	return &sp
 }
 
-func (sv *StackPage) RenderStack(stack []api.Stackframe) {
-	sv.listView.Clear()
+func (sp *StackPage) RenderStack(stack []api.Stackframe, curr *api.Stackframe) {
+	sp.listView.Clear()
+	selectedI := 0
 	for i, frame := range stack {
-		sv.listView.AddItem(
+		if curr.Line == frame.Line && curr.File == frame.File {
+			selectedI = i
+		}
+		sp.listView.AddItem(
 			frame.Function.Name(),
 			fmt.Sprintf("%s[white]:%d", frame.File, frame.Line),
 			rune(48+i),
 			nil).
 			SetSelectedFunc(func(i int, s1, s2 string, r rune) {
-				sv.commandHandler.RunCommand(&OpenFile{
+				sp.commandHandler.RunCommand(&OpenFile{
 					File:   stack[i].File,
 					AtLine: stack[i].Line - 1,
 				})
 			})
 	}
+	sp.listView.SetCurrentItem(selectedI)
 }
 
-func (sv *StackPage) GetWidget() tview.Primitive {
-	return sv.listView
+func (sp *StackPage) GetWidget() tview.Primitive {
+	return sp.listView
 }
 
-func (sv *StackPage) GetName() string {
+func (sp *StackPage) GetName() string {
 	return "stack"
 }
 
@@ -50,8 +55,18 @@ func (page *StackPage) SetCommandHandler(ch *CommandHandler) {
 	page.commandHandler = ch
 }
 
-func (sv *StackPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	handler := sv.listView.InputHandler()
-	handler(event, func(p tview.Primitive) {})
+func (sp *StackPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
+	rune := event.Rune()
+	if rune == 'j' {
+		sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() + 1)
+		return nil
+	}
+	if rune == 'k' {
+		if sp.listView.GetCurrentItem() > 0 {
+			sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() - 1)
+		}
+		return nil
+	}
+	sp.listView.InputHandler()(event, func(p tview.Primitive) {})
 	return nil
 }

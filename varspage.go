@@ -9,49 +9,60 @@ import (
 )
 
 type VarsPage struct {
+	flex           *tview.Flex
 	commandHandler *CommandHandler
-	treeView       *tview.TreeView
-	globals        *tview.TreeNode
 	locals         *tview.TreeNode
 	args           *tview.TreeNode
 	returns        *tview.TreeNode
+
+	varHeaders []*tview.TreeView
+	varHeaderIdx int
 
 	expandedCache map[uint64]bool
 }
 
 func NewVarPage() *VarsPage {
-	gHeader := tview.NewTreeNode("globals").SetColor(tcell.Color101).SetSelectable(true)
-	lHeader := tview.NewTreeNode("locals").SetColor(tcell.Color101).SetSelectable(true)
-	aHeader := tview.NewTreeNode("args").SetColor(tcell.Color101).SetSelectable(true)
-	rHeader := tview.NewTreeNode("return").SetColor(tcell.Color101).SetSelectable(true)
+	localsHeader := tview.NewTreeNode("locals").SetColor(tcell.ColorGreen).SetSelectable(true)
+	localsHeader.SetSelectable(false)
+	localsTree := tview.NewTreeView().SetRoot(localsHeader)
+	localsTree.SetCurrentNode(localsHeader)
+	localsTree.SetBackgroundColor(tcell.ColorDefault)
 
-	topHeader := tview.NewTreeNode("").SetColor(tcell.ColorRebeccaPurple).SetSelectable(true)
-	tree := tview.NewTreeView().SetRoot(topHeader)
-	tree.SetCurrentNode(topHeader)
-	tree.SetBackgroundColor(tcell.ColorDefault)
-	topHeader.AddChild(gHeader)
-	topHeader.AddChild(lHeader)
-	topHeader.AddChild(aHeader)
-	topHeader.AddChild(rHeader)
+	argsHeader := tview.NewTreeNode("arguments").SetColor(tcell.ColorGreen).SetSelectable(true)
+	argsHeader.SetSelectable(false)
+	argsTree := tview.NewTreeView().SetRoot(argsHeader)
+	argsTree.SetCurrentNode(argsHeader)
+	argsTree.SetBackgroundColor(tcell.ColorDefault)
+
+	returnsHeader := tview.NewTreeNode("return values").SetColor(tcell.ColorGreen).SetSelectable(true)
+	returnsHeader.SetSelectable(false)
+	returnsTree := tview.NewTreeView().SetRoot(returnsHeader)
+	returnsTree.SetCurrentNode(returnsHeader)
+	returnsTree.SetBackgroundColor(tcell.ColorDefault)
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow).
+		AddItem(localsTree, 0, 1, false).
+		AddItem(argsTree, 0, 1, false).
+		AddItem(returnsTree, 0, 1, false)
 
 	return &VarsPage{
-		treeView:      tree,
-		globals:       gHeader,
-		locals:        lHeader,
-		args:          aHeader,
+		flex: flex,
+		locals:        localsHeader,
+		args:          argsHeader,
+		returns: 	   returnsHeader,
+		varHeaders: []*tview.TreeView{localsTree,argsTree,returnsTree},
+		varHeaderIdx: 0,
 		expandedCache: make(map[uint64]bool),
 	}
 }
 
-func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable, globals []api.Variable, returns []api.Variable) {
+func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable, returns []api.Variable) {
 
 	page.locals.ClearChildren()
 	page.args.ClearChildren()
-	page.globals.ClearChildren()
 
 	page.AddVars(page.locals, locals)
 	page.AddVars(page.args, args)
-	page.AddVars(page.globals, globals)
 }
 
 func getVarTitle(vr *api.Variable, expanded bool) string {
@@ -106,8 +117,46 @@ func (varsView *VarsPage) GetName() string {
 }
 
 func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	handler := page.treeView.InputHandler()
-	handler(event, func(p tview.Primitive) {})
+
+	// If current header doesn't have content, move to one that does.
+	if len( page.varHeaders[page.varHeaderIdx].GetRoot().GetChildren() ) == 0 {
+		for i, t := range page.varHeaders {
+			if len( t.GetRoot().GetChildren() ) != 0 {
+				page.varHeaderIdx = i
+				break
+			}
+		}
+	}
+	// If moving with TAB/backTAB skip empty headers.
+	newI := page.varHeaderIdx
+	if event.Key() == tcell.KeyTAB {
+		for i, t := range page.varHeaders {
+			if i <= page.varHeaderIdx {
+				continue
+			}
+			if len( t.GetRoot().GetChildren() ) != 0 {
+				newI = i
+				break
+			}
+		}
+	} else if event.Key() == tcell.KeyBacktab {
+		for i := page.varHeaderIdx-1; i >=0; i-- {
+			if len( page.varHeaders[i].GetRoot().GetChildren() ) != 0 {
+				newI = i
+				break
+			}
+		}
+	}
+	page.varHeaderIdx = newI
+	currentTree := page.varHeaders[newI]
+	if currentTree.GetCurrentNode() == nil {
+		// Focus one child if nothing focused
+		if len(currentTree.GetRoot().GetChildren()) != 0 {
+			currentTree.SetCurrentNode(currentTree.GetRoot().GetChildren()[0])
+		}
+	}
+
+	page.varHeaders[page.varHeaderIdx].InputHandler()(event, func(p tview.Primitive) {})
 	return nil
 }
 
@@ -116,5 +165,5 @@ func (page *VarsPage) SetCommandHandler(ch *CommandHandler) {
 }
 
 func (page *VarsPage) GetWidget() tview.Primitive {
-	return page.treeView
+	return page.flex
 }

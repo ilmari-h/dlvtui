@@ -45,7 +45,6 @@ func loadFile(path string, fileChan chan *nav.File) {
 		Name:        path,
 		Path:        absPath,
 		Content:     buf,
-		Breakpoints: nil,
 		LineCount:   len(lineIndices),
 		LineIndices: lineIndices,
 	}
@@ -57,6 +56,7 @@ var AvailableCommands = []string{
 	"open",
 	"c", "continue",
 	"n", "next",
+	"s", "step",
 	"q", "quit",
 }
 
@@ -71,6 +71,8 @@ func StringToLineCommand(s string, args []string) LineCommand {
 		return &Continue{}
 	case "n", "next":
 		return &Next{}
+	case "s", "step":
+		return &Step{}
 	case "q", "quit":
 		return &Quit{}
 	}
@@ -183,8 +185,18 @@ func (cmd *OpenFile) run(view *View, app *tview.Application, client *rpc2.RPCCli
 	if !filepath.IsAbs(cmd.File) {
 		absPath = filepath.Join(view.navState.ProjectPath, cmd.File)
 	}
-	log.Printf("Opening file %s", absPath)
 	view.navState.CurrentLines[absPath] = cmd.AtLine
+
+	// If there's a stack frame for current file at current line, select it.
+	for _, sf := range view.navState.CurrentStack {
+		if sf.File == absPath && sf.Line == cmd.AtLine+1 {
+			view.navState.CurrentStackFrame = &sf
+			break
+		} else {
+			view.navState.CurrentStackFrame = nil
+		}
+	}
+
 	if val, ok := view.navState.FileCache[absPath]; ok {
 		view.fileChan <- val
 		return
@@ -234,7 +246,8 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 		return
 	}
 
-	view.dbgMoveChan <- &DebuggerMove{res, nil, sres}
+	log.Printf("Current stack render: %d", len(sres[0].Locals))
+	view.dbgMoveChan <- &DebuggerMove{res, sres}
 }
 
 type GetBreakpoints struct {
@@ -272,7 +285,36 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 		return
 	}
 
-	step := DebuggerStep{locals: sres[0].Locals, args: sres[0].Arguments}
+	view.dbgMoveChan <- &DebuggerMove{nres, sres}
+}
 
-	view.dbgMoveChan <- &DebuggerMove{nres, &step, sres}
+type Step struct {
+}
+
+
+func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	nres, nerr := client.Step()
+	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
+	if nerr != nil {
+		log.Printf("rpc error:%s\n", nerr.Error())
+		return
+	}
+	if serr != nil {
+		log.Printf("rpc error:%s\n", serr.Error())
+		return
+	}
+	if nres.Exited {
+		log.Printf("Program has finished with exit status %d.", nres.ExitStatus)
+		return
+	}
+
+	if view.navState.FileCache[nres.CurrentThread.File] == nil {
+		ch := make(chan *nav.File)
+		go loadFile(nres.CurrentThread.File, ch)
+
+		// Block until file loaded so it can be opened.
+		file := <- ch
+		view.OpenFile(file)
+	}
+	view.dbgMoveChan <- &DebuggerMove{nres, sres}
 }

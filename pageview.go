@@ -51,54 +51,34 @@ func (pv *PageView) CurrentPage() Page {
 	return pv.pages[pv.index]
 }
 
-func (pv *PageView) RenderDebuggerMove(dbgMove *DebuggerMove) {
-	newState := dbgMove.DbgState
-	line := newState.CurrentThread.Line
-	// Variables in new state.
-	var args []api.Variable
-	var locals []api.Variable
-	var globals []api.Variable
-	var returns []api.Variable
-
-	// If hit breakpoint.
-	if newState.CurrentThread.BreakpointInfo != nil {
-
-		locals = newState.CurrentThread.BreakpointInfo.Locals
-		globals = newState.CurrentThread.BreakpointInfo.Variables
-		args = newState.CurrentThread.BreakpointInfo.Arguments
-
-		// If just step.
-	} else if dbgMove.DbgStep != nil {
-		locals = append(locals, dbgMove.DbgStep.locals...)
-		args = append(args, dbgMove.DbgStep.args...)
-	}
-	returns = newState.CurrentThread.ReturnValues
-
-	// Update pages.
-	pv.varsPage.RenderVariables(args, locals, globals, returns)
-	pv.codePage.perfTextView.scrollTo(line-1, true)
-	pv.stackPage.RenderStack(dbgMove.Stack)
-}
-
 func (pv *PageView) RefreshLineColumn() {
 	pv.codePage.perfTextView.ReRender()
 }
 
-func (pv *PageView) RenderStack(stackFrame *api.Stackframe) {
-	pv.varsPage.RenderVariables(stackFrame.Arguments, stackFrame.Locals, []api.Variable{}, []api.Variable{})
+func (pv *PageView) RenderBreakpointHit(bpi *api.BreakpointInfo) {
+	if bpi == nil {
+		return
+	}
+	pv.varsPage.RenderVariables(bpi.Arguments, bpi.Locals, []api.Variable{})
+}
+
+func (pv *PageView) RenderStack(sf []api.Stackframe, csf *api.Stackframe) {
+	pv.varsPage.RenderVariables(csf.Arguments, csf.Locals, []api.Variable{})
+	pv.stackPage.RenderStack(sf, csf)
+}
+
+func (pv *PageView) RenderJumpToLine(toLine int) {
+	pv.codePage.perfTextView.scrollTo(toLine, true)
 }
 
 func (pv *PageView) GetWidget() tview.Primitive {
 	return pv.pagesView
 }
 
-func (pv *PageView) LoadFile(file *nav.File) {
-	lineInNewFile := pv.codePage.navState.EnterNewFile(file)
+func (pv *PageView) LoadFile(file *nav.File, atLine int) {
 	pv.index = 0
 	pv.pagesView.SwitchToPage(pv.codePage.GetName())
-	pv.codePage.perfTextView.SetTextP(file.Content, file.LineIndices)
-	pv.codePage.perfTextView.JumpTo(lineInNewFile)
-	pv.codePage.navState.SetLine(lineInNewFile)
+	pv.codePage.OpenFile(file,atLine)
 }
 
 // Consumes event if changing page. Otherwise delegates to active page.

@@ -12,14 +12,14 @@ type CodePage struct {
 	navState       *nav.Nav
 	flex           *tview.Flex
 	perfTextView   *PerfTextView
-	gutterColumn   GutterColumn
+	lineColumn   *LineColumn
 }
 
 func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 
 	textView := NewPerfTextView()
 	lineColumn := NewLineColumn(5, navState)
-	textView.SetGutterColumn(lineColumn)
+	textView.SetLineColumn(lineColumn)
 	lineColumn.textView.
 		SetRegions(true).
 		SetDynamicColors(true).
@@ -31,14 +31,25 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 	textView.SetText("")
 
 	flex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(lineColumn.textView, lineColumn.width, 1, false).
+		AddItem(lineColumn.textView, 5, 1, false).
 		AddItem(textView, 0, 1, false)
 	return &CodePage{
 		navState:     navState,
 		flex:         flex,
 		perfTextView: textView,
-		gutterColumn: lineColumn,
+		lineColumn: lineColumn,
 	}
+}
+
+func (page *CodePage) OpenFile(file *nav.File, atLine int) {
+
+	// Redraw flex view with new column width.
+	mv := getMaxLineColWidth(file.LineCount)
+	page.lineColumn.SetWidth(mv)
+	page.flex.ResizeItem(page.lineColumn.GetTextView(),mv,1)
+
+	page.perfTextView.SetTextP(file.Content, file.LineIndices)
+	page.perfTextView.JumpTo(atLine)
 }
 
 func (page *CodePage) GetName() string {

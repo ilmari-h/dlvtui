@@ -32,7 +32,6 @@ type DebuggerStep struct {
 
 type DebuggerMove struct {
 	DbgState *api.DebuggerState
-	DbgStep  *DebuggerStep
 	Stack    []api.Stackframe
 }
 
@@ -55,6 +54,9 @@ type View struct {
 }
 
 func parseCommand(input string) LineCommand {
+	if len(input) == 0 {
+		return nil
+	}
 	args := strings.Fields(input)
 	command := args[0]
 	cargs := args[1:]
@@ -87,7 +89,9 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 		linetext := view.cmdLine.GetText()
 		view.toNormalMode()
 		command := parseCommand(linetext)
-		view.cmdHandler.RunCommand(command)
+		if command != nil {
+			view.cmdHandler.RunCommand(command)
+		}
 		return nil
 	}
 
@@ -95,20 +99,33 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 	return view.pageView.HandleKeyEvent(kp.event)
 }
 
-func (view *View) fileLoop() {
-	for newFile := range view.fileChan {
-		view.pageView.LoadFile(newFile)
+/**
+ * Open a file.
+ * If file has been opened previously, resume on that line. Otherwise open at
+ * the first line.
+ */
+func (view *View) OpenFile(file *nav.File) {
+	lineInNewFile := view.navState.EnterFile(file)
+	view.navState.SetLine(lineInNewFile)
+	view.pageView.LoadFile(file, lineInNewFile)
 
-		// Load variables for current file if in stack.
-		for _, sf := range view.navState.CurrentStack {
-			if sf.File == newFile.Path {
-				view.pageView.RenderStack(&sf)
-				break
-			}
-		}
+	// Render current stack frame if one is selected.
+	if view.navState.CurrentStackFrame != nil {
+		view.pageView.RenderStack(view.navState.CurrentStack,view.navState.CurrentStackFrame)
 	}
 }
 
+func (view *View) fileLoop() {
+	for newFile := range view.fileChan {
+		view.OpenFile(newFile)
+	}
+}
+
+/**
+ * Render a debugger move.
+ * A debugger move is any operation where the current line or file changes, and
+ * the current stack frame may also have new variables or function calls.
+ */
 func (view *View) dbgMoveLoop() {
 	for dbgMove := range view.dbgMoveChan {
 		newState := dbgMove.DbgState
@@ -117,10 +134,12 @@ func (view *View) dbgMoveLoop() {
 		view.navState.DbgState = newState
 		view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: file, Line: line}
 
-		// Navigate to file at current line.
+		// Update current state of navigation.
+		log.Printf("Changing current file to %s", file)
 		view.navState.ChangeCurrentFile(file)
 		view.navState.SetLine(line - 1)
 		view.navState.CurrentStack = dbgMove.Stack
+		view.navState.CurrentStackFrame = &dbgMove.Stack[0]
 
 		// If hit breakpoint.
 		if newState.CurrentThread.BreakpointInfo != nil {
@@ -132,7 +151,9 @@ func (view *View) dbgMoveLoop() {
 		}
 
 		// Update pages.
-		view.pageView.RenderDebuggerMove(dbgMove)
+		view.pageView.RenderBreakpointHit(dbgMove.DbgState.CurrentThread.BreakpointInfo)
+		view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
+		view.pageView.RenderJumpToLine(line-1)
 	}
 }
 
@@ -140,7 +161,8 @@ func (view *View) breakpointLoop() {
 	for newBp := range view.breakpointChan {
 
 		log.Printf("Got breakpoint in %s on line %d!", newBp.File, newBp.Line)
-		// ID -1 signifies deleted breakpoint
+
+		// ID -1 signifies deleted breakpoint.
 		if newBp.ID == -1 {
 			delete(view.navState.Breakpoints[newBp.File], newBp.Line)
 			view.pageView.RefreshLineColumn()
