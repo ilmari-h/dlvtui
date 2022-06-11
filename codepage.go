@@ -2,15 +2,17 @@ package main
 
 import (
 	"dlvtui/nav"
+	"fmt"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type CodePage struct {
+	pageFrame         *tview.Frame
+	flex           *tview.Flex
 	commandHandler *CommandHandler
 	navState       *nav.Nav
-	flex           *tview.Flex
 	perfTextView   *PerfTextView
 	lineColumn   *LineColumn
 }
@@ -33,7 +35,14 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 	flex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(lineColumn.textView, 5, 1, false).
 		AddItem(textView, 0, 1, false)
+
+	pageFrame := tview.NewFrame(flex).
+		SetBorders(0,0,0,0,0,0).
+		AddText("[::b]No file loaded.", true, tview.AlignLeft, tcell.ColorWhite)
+	pageFrame.SetBackgroundColor(tcell.ColorDefault)
+
 	return &CodePage{
+		pageFrame: pageFrame,
 		navState:     navState,
 		flex:         flex,
 		perfTextView: textView,
@@ -42,6 +51,10 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 }
 
 func (page *CodePage) OpenFile(file *nav.File, atLine int) {
+
+	// Reset header.
+	page.pageFrame.Clear()
+	page.pageFrame.AddText(fmt.Sprintf("[::b]%s",file.Path),true, tview.AlignLeft, tcell.ColorBlue)
 
 	// Redraw flex view with new column width.
 	mv := getMaxLineColWidth(file.LineCount)
@@ -61,7 +74,7 @@ func (page *CodePage) SetCommandHandler(cmdHdlr *CommandHandler) {
 }
 
 func (page *CodePage) GetWidget() tview.Primitive {
-	return page.flex
+	return page.pageFrame
 }
 
 func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {

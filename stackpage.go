@@ -11,13 +11,20 @@ import (
 type StackPage struct {
 	commandHandler *CommandHandler
 	listView       *tview.List
+	widget         *tview.Frame
 }
 
 func NewStackPage() *StackPage {
+	listView := tview.NewList()
+	listView.SetBackgroundColor(tcell.ColorDefault)
+	pageFrame := tview.NewFrame(listView).
+		SetBorders(0,0,0,0,0,0).
+		AddText("[::b]Call stack:", true, tview.AlignLeft, tcell.ColorWhite)
+	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 	sp := StackPage{
-		listView: tview.NewList(),
+		listView: listView,
+		widget: pageFrame,
 	}
-	sp.listView.SetBackgroundColor(tcell.ColorDefault)
 	return &sp
 }
 
@@ -44,7 +51,7 @@ func (sp *StackPage) RenderStack(stack []api.Stackframe, curr *api.Stackframe) {
 }
 
 func (sp *StackPage) GetWidget() tview.Primitive {
-	return sp.listView
+	return sp.widget
 }
 
 func (sp *StackPage) GetName() string {

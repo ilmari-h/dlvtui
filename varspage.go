@@ -9,7 +9,7 @@ import (
 )
 
 type VarsPage struct {
-	flex           *tview.Flex
+	widget         tview.Primitive
 	commandHandler *CommandHandler
 	locals         *tview.TreeNode
 	args           *tview.TreeNode
@@ -45,8 +45,13 @@ func NewVarPage() *VarsPage {
 		AddItem(argsTree, 0, 1, false).
 		AddItem(returnsTree, 0, 1, false)
 
+	pageFrame := tview.NewFrame(flex).
+		SetBorders(0,0,0,0,0,0).
+		AddText("[::b]Current stack frame:", true, tview.AlignLeft, tcell.ColorWhite)
+	pageFrame.SetBackgroundColor(tcell.ColorDefault)
+
 	return &VarsPage{
-		flex: flex,
+		widget: pageFrame,
 		locals:        localsHeader,
 		args:          argsHeader,
 		returns: 	   returnsHeader,
@@ -165,5 +170,5 @@ func (page *VarsPage) SetCommandHandler(ch *CommandHandler) {
 }
 
 func (page *VarsPage) GetWidget() tview.Primitive {
-	return page.flex
+	return page.widget
 }
