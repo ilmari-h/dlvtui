@@ -79,7 +79,7 @@ func (pv *PageView) GetWidget() tview.Primitive {
 func (pv *PageView) LoadFile(file *nav.File, atLine int) {
 	pv.index = 0
 	pv.pagesView.SwitchToPage(pv.codePage.GetName())
-	pv.codePage.OpenFile(file,atLine)
+	pv.codePage.OpenFile(file, atLine)
 }
 
 // Consumes event if changing page. Otherwise delegates to active page.

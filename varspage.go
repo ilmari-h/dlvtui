@@ -15,7 +15,7 @@ type VarsPage struct {
 	args           *tview.TreeNode
 	returns        *tview.TreeNode
 
-	varHeaders []*tview.TreeView
+	varHeaders   []*tview.TreeView
 	varHeaderIdx int
 
 	expandedCache map[uint64]bool
@@ -46,17 +46,17 @@ func NewVarPage() *VarsPage {
 		AddItem(returnsTree, 0, 1, false)
 
 	pageFrame := tview.NewFrame(flex).
-		SetBorders(0,0,0,0,0,0).
+		SetBorders(0, 0, 0, 0, 0, 0).
 		AddText("[::b]Current stack frame:", true, tview.AlignLeft, tcell.ColorWhite)
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 
 	return &VarsPage{
-		widget: pageFrame,
+		widget:        pageFrame,
 		locals:        localsHeader,
 		args:          argsHeader,
-		returns: 	   returnsHeader,
-		varHeaders: []*tview.TreeView{localsTree,argsTree,returnsTree},
-		varHeaderIdx: 0,
+		returns:       returnsHeader,
+		varHeaders:    []*tview.TreeView{localsTree, argsTree, returnsTree},
+		varHeaderIdx:  0,
 		expandedCache: make(map[uint64]bool),
 	}
 }
@@ -124,9 +124,9 @@ func (varsView *VarsPage) GetName() string {
 func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 
 	// If current header doesn't have content, move to one that does.
-	if len( page.varHeaders[page.varHeaderIdx].GetRoot().GetChildren() ) == 0 {
+	if len(page.varHeaders[page.varHeaderIdx].GetRoot().GetChildren()) == 0 {
 		for i, t := range page.varHeaders {
-			if len( t.GetRoot().GetChildren() ) != 0 {
+			if len(t.GetRoot().GetChildren()) != 0 {
 				page.varHeaderIdx = i
 				break
 			}
@@ -139,14 +139,14 @@ func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 			if i <= page.varHeaderIdx {
 				continue
 			}
-			if len( t.GetRoot().GetChildren() ) != 0 {
+			if len(t.GetRoot().GetChildren()) != 0 {
 				newI = i
 				break
 			}
 		}
 	} else if event.Key() == tcell.KeyBacktab {
-		for i := page.varHeaderIdx-1; i >=0; i-- {
-			if len( page.varHeaders[i].GetRoot().GetChildren() ) != 0 {
+		for i := page.varHeaderIdx - 1; i >= 0; i-- {
+			if len(page.varHeaders[i].GetRoot().GetChildren()) != 0 {
 				newI = i
 				break
 			}

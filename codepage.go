@@ -9,12 +9,12 @@ import (
 )
 
 type CodePage struct {
-	pageFrame         *tview.Frame
+	pageFrame      *tview.Frame
 	flex           *tview.Flex
 	commandHandler *CommandHandler
 	navState       *nav.Nav
 	perfTextView   *PerfTextView
-	lineColumn   *LineColumn
+	lineColumn     *LineColumn
 }
 
 func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
@@ -37,16 +37,16 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 		AddItem(textView, 0, 1, false)
 
 	pageFrame := tview.NewFrame(flex).
-		SetBorders(0,0,0,0,0,0).
+		SetBorders(0, 0, 0, 0, 0, 0).
 		AddText("[::b]No file loaded.", true, tview.AlignLeft, tcell.ColorWhite)
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 
 	return &CodePage{
-		pageFrame: pageFrame,
+		pageFrame:    pageFrame,
 		navState:     navState,
 		flex:         flex,
 		perfTextView: textView,
-		lineColumn: lineColumn,
+		lineColumn:   lineColumn,
 	}
 }
 
@@ -54,12 +54,12 @@ func (page *CodePage) OpenFile(file *nav.File, atLine int) {
 
 	// Reset header.
 	page.pageFrame.Clear()
-	page.pageFrame.AddText(fmt.Sprintf("[::b]%s",file.Path),true, tview.AlignLeft, tcell.ColorBlue)
+	page.pageFrame.AddText(fmt.Sprintf("[::b]%s", file.Path), true, tview.AlignLeft, tcell.ColorBlue)
 
 	// Redraw flex view with new column width.
 	mv := getMaxLineColWidth(file.LineCount)
 	page.lineColumn.SetWidth(mv)
-	page.flex.ResizeItem(page.lineColumn.GetTextView(),mv,1)
+	page.flex.ResizeItem(page.lineColumn.GetTextView(), mv, 1)
 
 	page.perfTextView.SetTextP(file.Content, file.LineIndices)
 	page.perfTextView.JumpTo(atLine)

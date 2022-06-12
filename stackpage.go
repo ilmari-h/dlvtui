@@ -18,12 +18,12 @@ func NewStackPage() *StackPage {
 	listView := tview.NewList()
 	listView.SetBackgroundColor(tcell.ColorDefault)
 	pageFrame := tview.NewFrame(listView).
-		SetBorders(0,0,0,0,0,0).
+		SetBorders(0, 0, 0, 0, 0, 0).
 		AddText("[::b]Call stack:", true, tview.AlignLeft, tcell.ColorWhite)
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 	sp := StackPage{
 		listView: listView,
-		widget: pageFrame,
+		widget:   pageFrame,
 	}
 	return &sp
 }

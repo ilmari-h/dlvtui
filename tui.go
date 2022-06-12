@@ -104,20 +104,23 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
  * If file has been opened previously, resume on that line. Otherwise open at
  * the first line.
  */
-func (view *View) OpenFile(file *nav.File) {
-	lineInNewFile := view.navState.EnterFile(file)
-	view.navState.SetLine(lineInNewFile)
-	view.pageView.LoadFile(file, lineInNewFile)
+func (view *View) OpenFile(file *nav.File, atLine int) {
+	view.navState.ChangeCurrentFile(file)
+	view.navState.SetLine(atLine)
+	view.pageView.LoadFile(file, atLine)
 
 	// Render current stack frame if one is selected.
 	if view.navState.CurrentStackFrame != nil {
-		view.pageView.RenderStack(view.navState.CurrentStack,view.navState.CurrentStackFrame)
+		view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
 	}
 }
 
 func (view *View) fileLoop() {
 	for newFile := range view.fileChan {
-		view.OpenFile(newFile)
+		view.OpenFile(
+			newFile,
+			view.navState.LineInFile(newFile.Path),
+		)
 	}
 }
 
@@ -134,17 +137,17 @@ func (view *View) dbgMoveLoop() {
 		view.navState.DbgState = newState
 		view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: file, Line: line}
 
-		// Update current state of navigation.
-		log.Printf("Changing current file to %s", file)
-		view.navState.ChangeCurrentFile(file)
-		view.navState.SetLine(line - 1)
+		// Navigate to file and update call stack.
+		log.Printf("Debugger move inside file %s on line %d.", file, line-1)
+		view.OpenFile(view.navState.FileCache[file], line-1)
+
 		view.navState.CurrentStack = dbgMove.Stack
 		view.navState.CurrentStackFrame = &dbgMove.Stack[0]
 
 		// If hit breakpoint.
 		if newState.CurrentThread.BreakpointInfo != nil {
 
-			log.Printf("Hit breakpoint in %s on line %d!", file, line)
+			log.Printf("Hit breakpoint in %s on line %d.", file, line)
 
 			// Update breakpoint that was hit
 			view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
@@ -153,7 +156,7 @@ func (view *View) dbgMoveLoop() {
 		// Update pages.
 		view.pageView.RenderBreakpointHit(dbgMove.DbgState.CurrentThread.BreakpointInfo)
 		view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
-		view.pageView.RenderJumpToLine(line-1)
+		view.pageView.RenderJumpToLine(line - 1)
 	}
 }
 

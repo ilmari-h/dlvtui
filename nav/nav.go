@@ -31,17 +31,21 @@ func (nav *Nav) SetLine(line int) int {
 	return nav.CurrentLines[nav.CurrentFile.Path]
 }
 
-func (nav *Nav) EnterFile(file *File) int {
+func (nav *Nav) LineInFile(filePath string) int{
+	if _, ok := nav.CurrentLines[filePath]; !ok {
+		return 0
+	}
+	return nav.CurrentLines[filePath]
+}
+
+func (nav *Nav) ChangeCurrentFile(file *File){
 	if _, ok := nav.CurrentLines[file.Path]; !ok {
 		nav.CurrentLines[file.Path] = 0
 	}
-	nav.FileCache[file.Path] = file
+	if _, ok := nav.FileCache[file.Path]; !ok {
+		nav.FileCache[file.Path] = file
+	}
 	nav.CurrentFile = file
-	return nav.CurrentLine()
-}
-
-func (nav *Nav) ChangeCurrentFile(filePath string){
-	nav.CurrentFile = nav.FileCache[filePath]
 }
 
 // Represents state of navigation within the project directory and the debugger.

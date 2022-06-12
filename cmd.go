@@ -291,7 +291,6 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 type Step struct {
 }
 
-
 func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	nres, nerr := client.Step()
 	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
@@ -313,8 +312,8 @@ func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 		go loadFile(nres.CurrentThread.File, ch)
 
 		// Block until file loaded so it can be opened.
-		file := <- ch
-		view.OpenFile(file)
+		file := <-ch
+		view.OpenFile(file, nres.CurrentThread.Line-1)
 	}
 	view.dbgMoveChan <- &DebuggerMove{nres, sres}
 }

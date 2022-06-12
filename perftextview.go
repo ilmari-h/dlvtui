@@ -13,7 +13,7 @@ type PerfTextView struct {
 	virtualLine       int
 	scroll            int
 	fullText          string
-	lineColumn      *LineColumn
+	lineColumn        *LineColumn
 	tview.TextView
 }
 
@@ -98,4 +98,3 @@ func (perfTextView *PerfTextView) SetTextP(text string, lineIndices []int) {
 func (perfTextView *PerfTextView) SetLineColumn(column *LineColumn) {
 	perfTextView.lineColumn = column
 }
-

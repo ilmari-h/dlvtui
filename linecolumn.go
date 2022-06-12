@@ -9,12 +9,12 @@ import (
 )
 
 type LineColumn struct {
-	width int
+	width    int
 	navState *nav.Nav
 	textView *tview.TextView
 }
 
-func getMaxLineColWidth(maxLine int ) int {
+func getMaxLineColWidth(maxLine int) int {
 	return len(strconv.Itoa(maxLine)) + 3
 }
 
