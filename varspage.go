@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/go-delve/delve/service/api"
@@ -9,11 +10,18 @@ import (
 )
 
 type VarsPage struct {
+	flex           *tview.Flex
 	widget         tview.Primitive
 	commandHandler *CommandHandler
-	locals         *tview.TreeNode
-	args           *tview.TreeNode
-	returns        *tview.TreeNode
+
+	locals     *tview.TreeNode
+	localsTree *tview.TreeView
+
+	args     *tview.TreeNode
+	argsTree *tview.TreeView
+
+	returns     *tview.TreeNode
+	returnsTree *tview.TreeView
 
 	varHeaders   []*tview.TreeView
 	varHeaderIdx int
@@ -41,9 +49,9 @@ func NewVarPage() *VarsPage {
 	returnsTree.SetBackgroundColor(tcell.ColorDefault)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(localsTree, 0, 1, false).
-		AddItem(argsTree, 0, 1, false).
-		AddItem(returnsTree, 0, 1, false)
+		AddItem(localsTree, 1, 1, false).
+		AddItem(argsTree, 1, 1, false).
+		AddItem(returnsTree, 1, 1, false)
 
 	pageFrame := tview.NewFrame(flex).
 		SetBorders(0, 0, 0, 0, 0, 0).
@@ -51,14 +59,40 @@ func NewVarPage() *VarsPage {
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 
 	return &VarsPage{
-		widget:        pageFrame,
-		locals:        localsHeader,
-		args:          argsHeader,
-		returns:       returnsHeader,
+		flex:   flex,
+		widget: pageFrame,
+
+		locals:     localsHeader,
+		localsTree: localsTree,
+
+		args:     argsHeader,
+		argsTree: argsTree,
+
+		returns:     returnsHeader,
+		returnsTree: returnsTree,
+
 		varHeaders:    []*tview.TreeView{localsTree, argsTree, returnsTree},
 		varHeaderIdx:  0,
 		expandedCache: make(map[uint64]bool),
 	}
+}
+
+func (page *VarsPage) resizeTrees() {
+	visLocals := 0
+	visArgs := 0
+	page.locals.Walk(func(node, parent *tview.TreeNode) bool {
+		visLocals++
+		return node.IsExpanded()
+	})
+
+	page.args.Walk(func(node, parent *tview.TreeNode) bool {
+		visArgs++
+		return node.IsExpanded()
+	})
+
+	page.flex.ResizeItem(page.localsTree, visLocals, 0)
+	page.flex.ResizeItem(page.argsTree, visArgs, 0)
+
 }
 
 func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable, returns []api.Variable) {
@@ -68,6 +102,8 @@ func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable
 
 	page.AddVars(page.locals, locals)
 	page.AddVars(page.args, args)
+
+	page.resizeTrees()
 }
 
 func getVarTitle(vr *api.Variable, expanded bool) string {
@@ -89,28 +125,42 @@ func getVarTitle(vr *api.Variable, expanded bool) string {
 }
 
 func (page *VarsPage) AddVars(parent *tview.TreeNode, vars []api.Variable) {
-	for vi := range vars {
-		vr := vars[vi]
+
+	addedLocals := 0
+	addedArgs := 0
+	for _, vr := range vars {
 		newNode := tview.NewTreeNode(getVarTitle(&vr, page.expandedCache[vr.Addr])).
 			SetReference(vr)
 		newNode.SetSelectable(true)
 		newNode.SetColor(tcell.ColorBlack)
 
+		if parent == page.locals {
+			addedLocals++
+		} else if parent == page.args {
+			addedArgs++
+		}
+
 		// If node has children, initially collapse. Expand on select.
 		if vr.Children != nil && len(vr.Children) > 0 {
 			page.AddVars(newNode, vr.Children)
+
+			// Expand or collapse node according to what was cached from previous action.
 			if !page.expandedCache[vr.Addr] {
 				newNode.CollapseAll()
+			} else {
+				newNode.Expand()
 			}
+
 			newNode.SetSelectedFunc(func() {
-				page.expandedCache[vr.Addr] = !newNode.IsExpanded()
 				r := newNode.GetReference().(api.Variable)
+				page.expandedCache[r.Addr] = !newNode.IsExpanded()
 				if !newNode.IsExpanded() {
 					newNode.Expand()
 				} else {
 					newNode.Collapse()
 				}
-				newNode.SetText(getVarTitle(&r, page.expandedCache[vr.Addr]))
+				newNode.SetText(getVarTitle(&r, page.expandedCache[r.Addr]))
+				page.resizeTrees()
 			})
 		}
 		parent.AddChild(newNode)

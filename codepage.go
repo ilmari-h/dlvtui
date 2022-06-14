@@ -80,13 +80,17 @@ func (page *CodePage) GetWidget() tview.Primitive {
 func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 	rune := event.Rune()
 	if rune == 'j' {
-		line := page.navState.SetLine(page.navState.CurrentLine() + 1)
-		page.perfTextView.scrollTo(line, false)
+		if page.navState.CurrentFile != nil {
+			line := page.navState.SetLine(page.navState.CurrentLine() + 1)
+			page.perfTextView.scrollTo(line, false)
+		}
 		return nil
 	}
 	if rune == 'k' {
-		line := page.navState.SetLine(page.navState.CurrentLine() - 1)
-		page.perfTextView.scrollTo(line, false)
+		if page.navState.CurrentFile != nil {
+			line := page.navState.SetLine(page.navState.CurrentLine() - 1)
+			page.perfTextView.scrollTo(line, false)
+		}
 		return nil
 	}
 	if rune == 'g' {

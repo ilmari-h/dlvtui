@@ -39,7 +39,6 @@ func NewPageView(cmdHdlr *CommandHandler, nav *nav.Nav, app *tview.Application) 
 	pv.pages = []Page{pv.codePage, pv.varsPage, pv.stackPage}
 
 	for _, p := range pv.pages {
-
 		pv.pagesView.AddPage(p.GetName(), p.GetWidget(), true, true)
 		p.SetCommandHandler(cmdHdlr)
 	}
