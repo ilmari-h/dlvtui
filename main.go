@@ -33,8 +33,8 @@ func execDebuggerCmd(executable string, exArgs []string, port string) []string {
 		allArgs = append(allArgs, exArgs...)
 	}
 	return allArgs
-
 }
+
 func attachDebuggerCmd(pid string, exArgs []string, port string) []string {
 	log.Printf("Debugging process with PID: %s", pid)
 	allArgs := []string{

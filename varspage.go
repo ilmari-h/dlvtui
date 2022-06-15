@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/go-delve/delve/service/api"

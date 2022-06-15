@@ -51,14 +51,18 @@ func (nav *Nav) ChangeCurrentFile(file *File){
 // Represents state of navigation within the project directory and the debugger.
 type Nav struct {
 
-	// directory
+	// Project level
 	SourceFiles []string
 	ProjectPath string
+	FileCache   map[string]*File
+	Goroutines []*api.Goroutine
+
+	// Goroutine level
+	// TODO: these could all be mapped under goroutine ID
+
 	CurrentFile *File
 	CurrentLines map[string]int
-	FileCache   map[string]*File
 
-	// debugger
 	DbgState *api.DebuggerState
 	Breakpoints map[string] map[int]*api.Breakpoint
 	CurrentDebuggerPos DebuggerPos
@@ -74,9 +78,11 @@ func loadNav(projectRootPath string) Nav {
 func NewNav(projectPath string) Nav {
 
 	return Nav{
+		SourceFiles: []string{},
 		ProjectPath: projectPath,
 		FileCache:   make(map[string]*File),
 		CurrentLines: make(map[string]int),
 		Breakpoints: make(map[string] map[int]*api.Breakpoint),
+		Goroutines: []*api.Goroutine{},
 	}
 }

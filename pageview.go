@@ -21,9 +21,10 @@ type PageView struct {
 	pages          []Page
 	pagesView      *tview.Pages
 
-	codePage  *CodePage
-	varsPage  *VarsPage
-	stackPage *StackPage
+	codePage      *CodePage
+	varsPage      *VarsPage
+	stackPage     *StackPage
+	goroutinePage *GoroutinePage
 }
 
 func NewPageView(cmdHdlr *CommandHandler, nav *nav.Nav, app *tview.Application) *PageView {
@@ -35,8 +36,9 @@ func NewPageView(cmdHdlr *CommandHandler, nav *nav.Nav, app *tview.Application) 
 		codePage:       NewCodePage(app, nav),
 		varsPage:       NewVarPage(),
 		stackPage:      NewStackPage(),
+		goroutinePage:  NewGoroutinePage(),
 	}
-	pv.pages = []Page{pv.codePage, pv.varsPage, pv.stackPage}
+	pv.pages = []Page{pv.codePage, pv.varsPage, pv.stackPage, pv.goroutinePage}
 
 	for _, p := range pv.pages {
 		pv.pagesView.AddPage(p.GetName(), p.GetWidget(), true, true)

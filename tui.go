@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"math"
 	"strings"
 
 	"dlvtui/nav"
@@ -48,9 +50,13 @@ type View struct {
 	cmdLine    *tview.InputField
 	cmdHandler *CommandHandler
 
+	notificationLine *tview.TextView
+
 	dbgMoveChan    chan *DebuggerMove
 	breakpointChan chan *api.Breakpoint
 	navState       *nav.Nav
+
+	goroutineChan chan []*api.Goroutine
 }
 
 func parseCommand(input string) LineCommand {
@@ -75,6 +81,14 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 	key := kp.event.Key()
 	keyHandler.prevKey = kp.event
 
+	// Block events if there's a notification prompt.
+	if view.notificationLine.GetText(true) != "" {
+		if key == tcell.KeyEnter {
+			view.clearNotification()
+		}
+		return nil
+	}
+
 	if rune == ':' {
 		view.toCmdMode()
 		return nil
@@ -95,8 +109,11 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 		return nil
 	}
 
-	// Delegate to page view, which either changes page or delegates to current page.
-	return view.pageView.HandleKeyEvent(kp.event)
+	if view.currentMode != Cmd {
+		// Delegate to page view, which either changes page or delegates to current page.
+		return view.pageView.HandleKeyEvent(kp.event)
+	}
+	return kp.event
 }
 
 /**
@@ -115,12 +132,22 @@ func (view *View) OpenFile(file *nav.File, atLine int) {
 	}
 }
 
-func (view *View) fileLoop() {
-	for newFile := range view.fileChan {
-		view.OpenFile(
-			newFile,
-			view.navState.LineInFile(newFile.Path),
-		)
+/**
+ * Listen to debugger state related messages from channels.
+ * These usually result in re-rendering of some ui elements.
+ */
+func (view *View) uiEventLoop() {
+	for {
+		select {
+		case dbgMove := <-view.dbgMoveChan:
+			view.onDebuggerMove(dbgMove)
+		case newFile := <-view.fileChan:
+			view.onNewFile(newFile)
+		case newBp := <-view.breakpointChan:
+			view.onNewBreakpoint(newBp)
+		case activeGoroutines := <-view.goroutineChan:
+			view.onNewGoroutines(activeGoroutines)
+		}
 	}
 }
 
@@ -129,55 +156,63 @@ func (view *View) fileLoop() {
  * A debugger move is any operation where the current line or file changes, and
  * the current stack frame may also have new variables or function calls.
  */
-func (view *View) dbgMoveLoop() {
-	for dbgMove := range view.dbgMoveChan {
-		newState := dbgMove.DbgState
-		line := newState.CurrentThread.Line
-		file := newState.CurrentThread.File
-		view.navState.DbgState = newState
-		view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: file, Line: line}
+func (view *View) onDebuggerMove(dbgMove *DebuggerMove) {
+	newState := dbgMove.DbgState
+	line := newState.CurrentThread.Line
+	file := newState.CurrentThread.File
+	view.navState.DbgState = newState
+	view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: file, Line: line}
 
-		// Navigate to file and update call stack.
-		log.Printf("Debugger move inside file %s on line %d.", file, line-1)
-		view.OpenFile(view.navState.FileCache[file], line-1)
+	// Navigate to file and update call stack.
+	log.Printf("Debugger move inside file %s on line %d.", file, line-1)
+	view.OpenFile(view.navState.FileCache[file], line-1)
 
-		view.navState.CurrentStack = dbgMove.Stack
-		view.navState.CurrentStackFrame = &dbgMove.Stack[0]
+	view.navState.CurrentStack = dbgMove.Stack
+	view.navState.CurrentStackFrame = &dbgMove.Stack[0]
 
-		// If hit breakpoint.
-		if newState.CurrentThread.BreakpointInfo != nil {
+	// If hit breakpoint.
+	if newState.CurrentThread.BreakpointInfo != nil {
 
-			log.Printf("Hit breakpoint in %s on line %d.", file, line)
+		log.Printf("Hit breakpoint in %s on line %d.", file, line)
 
-			// Update breakpoint that was hit
-			view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
-		}
-
-		// Update pages.
-		view.pageView.RenderBreakpointHit(dbgMove.DbgState.CurrentThread.BreakpointInfo)
-		view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
-		view.pageView.RenderJumpToLine(line - 1)
+		// Update breakpoint that was hit
+		view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
 	}
+
+	// Update pages.
+	view.pageView.RenderBreakpointHit(dbgMove.DbgState.CurrentThread.BreakpointInfo)
+	view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
+	view.pageView.RenderJumpToLine(line - 1)
 }
 
-func (view *View) breakpointLoop() {
-	for newBp := range view.breakpointChan {
+func (view *View) onNewFile(newFile *nav.File) {
+	view.OpenFile(
+		newFile,
+		view.navState.LineInFile(newFile.Path),
+	)
+}
 
-		log.Printf("Got breakpoint in %s on line %d!", newBp.File, newBp.Line)
+func (view *View) onNewBreakpoint(newBp *api.Breakpoint) {
 
-		// ID -1 signifies deleted breakpoint.
-		if newBp.ID == -1 {
-			delete(view.navState.Breakpoints[newBp.File], newBp.Line)
-			view.pageView.RefreshLineColumn()
-			continue
-		}
+	log.Printf("Got breakpoint in %s on line %d!", newBp.File, newBp.Line)
 
-		if len(view.navState.Breakpoints[newBp.File]) == 0 {
-			view.navState.Breakpoints[newBp.File] = make(map[int]*api.Breakpoint)
-		}
-		view.navState.Breakpoints[newBp.File][newBp.Line] = newBp
+	// ID -1 signifies deleted breakpoint.
+	if newBp.ID == -1 {
+		delete(view.navState.Breakpoints[newBp.File], newBp.Line)
 		view.pageView.RefreshLineColumn()
+		return
 	}
+
+	if len(view.navState.Breakpoints[newBp.File]) == 0 {
+		view.navState.Breakpoints[newBp.File] = make(map[int]*api.Breakpoint)
+	}
+	view.navState.Breakpoints[newBp.File][newBp.Line] = newBp
+	view.pageView.RefreshLineColumn()
+}
+
+func (view *View) onNewGoroutines(activeGoroutines []*api.Goroutine) {
+	view.navState.Goroutines = activeGoroutines
+	view.pageView.goroutinePage.RenderGoroutines(activeGoroutines, nil)
 }
 
 func (view *View) toNormalMode() {
@@ -197,12 +232,34 @@ func (view *View) toCmdMode() {
 	view.currentMode = Cmd
 }
 
+func (view *View) clearNotification() {
+	view.notificationLine.SetText("")
+	view.masterView.ResizeItem(view.notificationLine, 0, 0)
+	view.pageView.RenderJumpToLine(view.navState.CurrentLine())
+}
+
+func (view *View) showNotification(msg string, error bool) {
+	msgLen := len(msg)
+	msg += "\n[green::b]Press Enter to continue"
+	if error {
+		msgLen += 7
+		view.notificationLine.SetText(fmt.Sprintf("[red::b]Error[-:-:-]: %s", msg))
+	} else {
+		view.notificationLine.SetText(msg)
+	}
+	_, _, boxWidth, _ := view.notificationLine.GetRect()
+	lines := int(math.Ceil(float64(msgLen) / float64(boxWidth)))
+	view.masterView.ResizeItem(view.notificationLine, lines+1, 1)
+	view.pageView.RenderJumpToLine(view.navState.CurrentLine())
+}
+
 func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCClient) View {
 
 	var view = View{
 		commandChan:    make(chan string, 1024),
 		fileChan:       make(chan *nav.File, 1024),
 		dbgMoveChan:    make(chan *DebuggerMove, 1024),
+		goroutineChan:  make(chan []*api.Goroutine, 1024),
 		breakpointChan: make(chan *api.Breakpoint, 1024),
 		navState:       navState,
 		currentMode:    Normal,
@@ -225,20 +282,26 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 			event := tcell.NewEventKey(key, 0, tcell.ModNone)
 			view.keyHandler.handleKeyEvent(KeyPress{event: event, mode: Cmd})
 		})
+	notificationLine := tview.NewTextView().
+		SetDynamicColors(true).
+		SetText("")
+	notificationLine.SetBackgroundColor(tcell.ColorDefault)
+	notificationLine.SetWordWrap(true)
+
 	commandLine.SetBackgroundColor(tcell.ColorDefault)
 	commandLine.SetFieldBackgroundColor(tcell.ColorDefault)
 
 	flex.AddItem(view.pageView.GetWidget(), 0, 1, false)
+	flex.AddItem(notificationLine, 1, 1, false)
 	flex.AddItem(commandLine, 1, 1, false)
 
 	app.SetRoot(flex, true).SetFocus(flex)
 
 	view.masterView = flex
 	view.cmdLine = commandLine
+	view.notificationLine = notificationLine
 
-	go view.fileLoop()
-	go view.breakpointLoop()
-	go view.dbgMoveLoop()
+	go view.uiEventLoop()
 
 	go view.cmdHandler.RunCommand(&GetBreakpoints{})
 

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"dlvtui/nav"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -168,6 +169,7 @@ func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc
 
 	if err != nil {
 		log.Printf("rpc error:%s\n", err.Error())
+		view.showNotification(err.Error(), true)
 		return
 	}
 	view.breakpointChan <- res
@@ -212,6 +214,7 @@ func (cmd *ClearBreakpoint) run(view *View, app *tview.Application, client *rpc2
 	res, err := client.ClearBreakpoint(cmd.Breakpoint.ID)
 	if err != nil {
 		log.Printf("rpc error:%s\n", err.Error())
+		view.showNotification(err.Error(), true)
 		return
 	}
 	res.ID = -1 // Deleted
@@ -234,6 +237,14 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 	view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: "", Line: -1}
 
 	res := <-client.Continue()
+
+	if res.Exited {
+		msg := fmt.Sprintf("Program has finished with exit status %d.", res.ExitStatus)
+		log.Print(msg)
+		view.showNotification(msg, false)
+		return
+	}
+
 	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if serr != nil {
@@ -241,10 +252,9 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 		return
 	}
 
-	if res.Exited {
-		log.Printf("Program has finished with exit status %d.", res.ExitStatus)
-		return
-	}
+	// Run ListGoroutines-command when ever new Goroutines may have been started.
+	lg := ListGoroutines{}
+	go lg.run(view, app, client)
 
 	log.Printf("Current stack render: %d", len(sres[0].Locals))
 	view.dbgMoveChan <- &DebuggerMove{res, sres}
@@ -257,6 +267,7 @@ func (cmd *GetBreakpoints) run(view *View, app *tview.Application, client *rpc2.
 	bps, err := client.ListBreakpoints(true)
 	if err != nil {
 		log.Printf("rpc error:%s\n", err.Error())
+		view.showNotification(err.Error(), true)
 		return
 	}
 	for i := range bps {
@@ -284,6 +295,10 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 		log.Printf("Program has finished with exit status %d.", nres.ExitStatus)
 		return
 	}
+
+	// Run ListGoroutines-command when ever new Goroutines may have been started.
+	lg := ListGoroutines{}
+	go lg.run(view, app, client)
 
 	view.dbgMoveChan <- &DebuggerMove{nres, sres}
 }
@@ -316,4 +331,31 @@ func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 		view.OpenFile(file, nres.CurrentThread.Line-1)
 	}
 	view.dbgMoveChan <- &DebuggerMove{nres, sres}
+}
+
+type ListGoroutines struct {
+}
+
+func (cmd *ListGoroutines) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	lres, _, lerr := client.ListGoroutines(0, 99)
+	if lerr != nil {
+		log.Printf("rpc error:%s\n", lerr.Error())
+		return
+	}
+	log.Printf("Fetched active goroutines: %v", lres)
+	view.goroutineChan <- lres
+}
+
+type SwitchGoroutines struct {
+	Id int
+}
+
+func (cmd *SwitchGoroutines) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	res, err := client.SwitchGoroutine(cmd.Id)
+	if err != nil {
+		log.Printf("rpc error:%s\n", err.Error())
+		view.showNotification(err.Error(), true)
+		return
+	}
+	log.Printf("Switching to goroutine %d.", res.Pid)
 }
