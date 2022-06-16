@@ -48,6 +48,19 @@ func (nav *Nav) ChangeCurrentFile(file *File){
 	nav.CurrentFile = file
 }
 
+func (nav *Nav) GetAllBreakpoints() []*api.Breakpoint {
+	bps := []*api.Breakpoint{}
+	if nav.Breakpoints == nil {
+		return bps
+	}
+	for _, fileMap := range nav.Breakpoints {
+		for _, bp := range fileMap {
+			bps = append(bps, bp)
+		}
+	}
+	return bps
+}
+
 // Represents state of navigation within the project directory and the debugger.
 type Nav struct {
 

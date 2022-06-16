@@ -55,6 +55,11 @@ func loadFile(path string, fileChan chan *nav.File) {
 
 var AvailableCommands = []string{
 	"open",
+	"bs", "breakpoints",
+	"stack",
+	"goroutines",
+	"locals",
+	"code",
 	"c", "continue",
 	"n", "next",
 	"s", "step",
@@ -68,6 +73,16 @@ func StringToLineCommand(s string, args []string) LineCommand {
 		return &OpenFile{
 			File: args[0],
 		}
+	case "bs", "breakpoints":
+		return &OpenPage{PageIndex: IBreakPointsPage}
+	case "stack":
+		return &OpenPage{PageIndex: IStackPage}
+	case "goroutines":
+		return &OpenPage{PageIndex: IGoroutinePage}
+	case "locals":
+		return &OpenPage{PageIndex: IVarsPage}
+	case "code":
+		return &OpenPage{PageIndex: ICodePage}
 	case "c", "continue":
 		return &Continue{}
 	case "n", "next":
@@ -173,6 +188,14 @@ func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc
 		return
 	}
 	view.breakpointChan <- res
+}
+
+type OpenPage struct {
+	PageIndex PageIndex
+}
+
+func (cmd *OpenPage) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	view.pageView.SwitchToPage(cmd.PageIndex)
 }
 
 type OpenFile struct {
@@ -281,18 +304,23 @@ type Next struct {
 func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
 	nres, nerr := client.Next()
-	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if nerr != nil {
 		log.Printf("rpc error:%s\n", nerr.Error())
 		return
 	}
-	if serr != nil {
-		log.Printf("rpc error:%s\n", serr.Error())
+
+	if nres.Exited {
+		msg := fmt.Sprintf("Program has finished with exit status %d.", nres.ExitStatus)
+		log.Print(msg)
+		view.showNotification(msg, false)
 		return
 	}
-	if nres.Exited {
-		log.Printf("Program has finished with exit status %d.", nres.ExitStatus)
+
+	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
+
+	if serr != nil {
+		log.Printf("rpc error:%s\n", serr.Error())
 		return
 	}
 
@@ -308,17 +336,22 @@ type Step struct {
 
 func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	nres, nerr := client.Step()
-	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
+	if nres.Exited {
+		msg := fmt.Sprintf("Program has finished with exit status %d.", nres.ExitStatus)
+		log.Print(msg)
+		view.showNotification(msg, false)
+		return
+	}
+
 	if nerr != nil {
 		log.Printf("rpc error:%s\n", nerr.Error())
 		return
 	}
+
+	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
+
 	if serr != nil {
 		log.Printf("rpc error:%s\n", serr.Error())
-		return
-	}
-	if nres.Exited {
-		log.Printf("Program has finished with exit status %d.", nres.ExitStatus)
 		return
 	}
 

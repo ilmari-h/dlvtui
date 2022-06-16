@@ -29,19 +29,24 @@ type VarsPage struct {
 }
 
 func NewVarPage() *VarsPage {
-	localsHeader := tview.NewTreeNode("locals").SetColor(tcell.ColorGreen).SetSelectable(true)
+	localsHeader := tview.NewTreeNode("[green::b]locals").
+		SetColor(tcell.ColorGreen).
+		SetSelectable(true)
 	localsHeader.SetSelectable(false)
 	localsTree := tview.NewTreeView().SetRoot(localsHeader)
 	localsTree.SetCurrentNode(localsHeader)
 	localsTree.SetBackgroundColor(tcell.ColorDefault)
 
-	argsHeader := tview.NewTreeNode("arguments").SetColor(tcell.ColorGreen).SetSelectable(true)
+	argsHeader := tview.NewTreeNode("[green::b]arguments").
+		SetColor(tcell.ColorGreen).SetSelectable(true)
 	argsHeader.SetSelectable(false)
 	argsTree := tview.NewTreeView().SetRoot(argsHeader)
 	argsTree.SetCurrentNode(argsHeader)
 	argsTree.SetBackgroundColor(tcell.ColorDefault)
 
-	returnsHeader := tview.NewTreeNode("return values").SetColor(tcell.ColorGreen).SetSelectable(true)
+	returnsHeader := tview.NewTreeNode("[green::b]return values").
+		SetColor(tcell.ColorGreen).
+		SetSelectable(true)
 	returnsHeader.SetSelectable(false)
 	returnsTree := tview.NewTreeView().SetRoot(returnsHeader)
 	returnsTree.SetCurrentNode(returnsHeader)

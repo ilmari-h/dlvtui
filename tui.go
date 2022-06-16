@@ -207,6 +207,7 @@ func (view *View) onNewBreakpoint(newBp *api.Breakpoint) {
 		view.navState.Breakpoints[newBp.File] = make(map[int]*api.Breakpoint)
 	}
 	view.navState.Breakpoints[newBp.File][newBp.Line] = newBp
+	view.pageView.RenderBreakpoints(view.navState.GetAllBreakpoints())
 	view.pageView.RefreshLineColumn()
 }
 
