@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/go-delve/delve/service/api"
@@ -17,10 +18,14 @@ type StackPage struct {
 func NewStackPage() *StackPage {
 	listView := tview.NewList()
 	listView.SetBackgroundColor(tcell.ColorDefault)
+	listView.SetSelectedBackgroundColor(tcell.ColorBlack)
+	listView.SetSelectedTextColor(tcell.ColorWhite)
+
 	pageFrame := tview.NewFrame(listView).
 		SetBorders(0, 0, 0, 0, 0, 0).
 		AddText("[::b]Call stack:", true, tview.AlignLeft, tcell.ColorWhite)
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
+
 	sp := StackPage{
 		listView: listView,
 		widget:   pageFrame,
@@ -35,8 +40,16 @@ func (sp *StackPage) RenderStack(stack []api.Stackframe, curr *api.Stackframe) {
 		if curr.Line == frame.Line && curr.File == frame.File {
 			selectedI = i
 		}
+
+		// Format header
+		fullName := frame.Function.Name()
+		dotIdx := strings.Index(fullName, ".")
+		pkgName := fullName[:dotIdx]
+		functionName := fullName[dotIdx:]
+		header := fmt.Sprintf("[white::b]%s[blue::-]%s", pkgName, functionName)
+
 		sp.listView.AddItem(
-			frame.Function.Name(),
+			header,
 			fmt.Sprintf("%s[white]:%d", frame.File, frame.Line),
 			rune(48+i),
 			nil).

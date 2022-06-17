@@ -114,6 +114,7 @@ func getVarTitle(vr *api.Variable, expanded bool) string {
 	namestr := fmt.Sprintf("[green::b]%s", vr.Name)
 	typestr := fmt.Sprintf("[purple]<%s>[white:-:-]", vr.RealType)
 	valstr := ""
+	addrstr := fmt.Sprintf("[gray] 0x%x", vr.Addr)
 	if vr.Value != "" {
 		valstr += fmt.Sprintf(" %s", vr.Value)
 	}
@@ -125,7 +126,7 @@ func getVarTitle(vr *api.Variable, expanded bool) string {
 			suffix = " [blue]+"
 		}
 	}
-	return namestr + typestr + valstr + suffix
+	return namestr + typestr + valstr + suffix + addrstr
 }
 
 func (page *VarsPage) AddVars(parent *tview.TreeNode, vars []api.Variable) {
