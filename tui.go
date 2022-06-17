@@ -213,7 +213,10 @@ func (view *View) onNewBreakpoint(newBp *api.Breakpoint) {
 
 func (view *View) onNewGoroutines(activeGoroutines []*api.Goroutine) {
 	view.navState.Goroutines = activeGoroutines
-	view.pageView.goroutinePage.RenderGoroutines(activeGoroutines, nil)
+	view.pageView.goroutinePage.RenderGoroutines(
+		activeGoroutines,
+		view.navState.DbgState.CurrentThread.GoroutineID,
+	)
 }
 
 func (view *View) toNormalMode() {

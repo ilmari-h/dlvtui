@@ -384,11 +384,21 @@ type SwitchGoroutines struct {
 }
 
 func (cmd *SwitchGoroutines) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	log.Printf("Switching to goroutine %d.", cmd.Id)
 	res, err := client.SwitchGoroutine(cmd.Id)
 	if err != nil {
 		log.Printf("rpc error:%s\n", err.Error())
 		view.showNotification(err.Error(), true)
 		return
 	}
-	log.Printf("Switching to goroutine %d.", res.Pid)
+	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
+
+	if serr != nil {
+		log.Printf("rpc error:%s\n", serr.Error())
+		return
+	}
+
+	log.Printf("Switched to goroutine %d.", res.Pid)
+
+	view.dbgMoveChan <- &DebuggerMove{res, sres}
 }

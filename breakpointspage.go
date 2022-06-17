@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/go-delve/delve/service/api"
@@ -31,6 +32,7 @@ func NewBreakpointsPage() *BreakpointsPage {
 		SetBorders(0, 0, 0, 0, 0, 0).
 		AddText("[::b]Breakpoints:", true, tview.AlignLeft, tcell.ColorWhite)
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
+	treeView.SetCurrentNode(root)
 	bp := BreakpointsPage{
 		treeView: treeView,
 		widget:   pageFrame,
@@ -43,9 +45,11 @@ func (page *BreakpointsPage) SetCommandHandler(ch *CommandHandler) {
 }
 
 func (page *BreakpointsPage) RenderBreakpoints(bps []*api.Breakpoint) {
+	sort.SliceStable(bps, func(i, j int) bool {
+		return bps[i].Line < bps[j].Line || bps[i].File < bps[j].File
+	})
 	page.fileList = make(map[string]*tview.TreeNode)
 	rootNode := page.treeView.GetRoot()
-	page.treeView.SetCurrentNode(rootNode)
 	rootNode.ClearChildren()
 	for _, bp := range bps {
 		if bp.ID < 0 {
@@ -81,15 +85,26 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*api.Breakpoint) {
 	}
 }
 
-func (sp *BreakpointsPage) GetWidget() tview.Primitive {
-	return sp.widget
+func (page *BreakpointsPage) GetWidget() tview.Primitive {
+	return page.widget
 }
 
-func (sp *BreakpointsPage) GetName() string {
+func (page *BreakpointsPage) GetName() string {
 	return "breakpoints"
 }
 
-func (sp *BreakpointsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	sp.treeView.InputHandler()(event, func(p tview.Primitive) {})
+func (page *BreakpointsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
+	rune := event.Rune()
+	if rune == 'd' {
+		selectedNode := page.treeView.GetCurrentNode()
+		selectedBp := selectedNode.GetReference().(*api.Breakpoint)
+		if selectedBp != nil {
+			page.fileList[selectedBp.File].RemoveChild(selectedNode)
+			page.commandHandler.RunCommand(&ClearBreakpoint{Breakpoint: selectedBp})
+			page.treeView.SetCurrentNode(page.fileList[selectedBp.File])
+		}
+		return nil
+	}
+	page.treeView.InputHandler()(event, func(p tview.Primitive) {})
 	return nil
 }

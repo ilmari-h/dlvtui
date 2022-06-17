@@ -61,6 +61,19 @@ func (nav *Nav) GetAllBreakpoints() []*api.Breakpoint {
 	return bps
 }
 
+func (nav *Nav) GetBreakpointsByFile() map[string][]*api.Breakpoint {
+	bps := make(map[string][]*api.Breakpoint)
+	if nav.Breakpoints == nil {
+		return bps
+	}
+	for filename, fileMap := range nav.Breakpoints {
+		for _, bp := range fileMap {
+			bps[filename] = append(bps[filename], bp)
+		}
+	}
+	return bps
+}
+
 // Represents state of navigation within the project directory and the debugger.
 type Nav struct {
 
@@ -70,15 +83,12 @@ type Nav struct {
 	FileCache   map[string]*File
 	Goroutines []*api.Goroutine
 
-	// Goroutine level
-	// TODO: these could all be mapped under goroutine ID
-
+	Breakpoints map[string] map[int]*api.Breakpoint
 	CurrentFile *File
 	CurrentLines map[string]int
+	CurrentDebuggerPos DebuggerPos
 
 	DbgState *api.DebuggerState
-	Breakpoints map[string] map[int]*api.Breakpoint
-	CurrentDebuggerPos DebuggerPos
 	CurrentStack []api.Stackframe
 	CurrentStackFrame *api.Stackframe
 }
