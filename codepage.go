@@ -78,46 +78,70 @@ func (page *CodePage) GetWidget() tview.Primitive {
 }
 
 func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	rune := event.Rune()
-	if rune == 'j' {
+	if keyPressed(event, gConfig.lineDown) {
 		if page.navState.CurrentFile != nil {
 			line := page.navState.SetLine(page.navState.CurrentLine() + 1)
 			page.perfTextView.scrollTo(line, false)
 		}
 		return nil
 	}
-	if rune == 'k' {
+	if keyPressed(event, gConfig.lineUp) {
 		if page.navState.CurrentFile != nil {
 			line := page.navState.SetLine(page.navState.CurrentLine() - 1)
 			page.perfTextView.scrollTo(line, false)
 		}
 		return nil
 	}
-	if rune == 'g' {
+	if keyPressed(event, gConfig.pageTop) {
 		line := page.navState.SetLine(0)
 		page.perfTextView.scrollTo(line, true)
 		return nil
 	}
-	if rune == 'G' {
+	if keyPressed(event, gConfig.pageEnd) {
 		line := page.navState.SetLine(page.navState.CurrentFile.LineCount - 2)
 		page.perfTextView.scrollTo(line, true)
 		return nil
 	}
-	if rune == 'b' {
+	if keyPressed(event, gConfig.breakpoint) {
+		bps := page.navState.Breakpoints
+		if _, ok := bps[page.navState.CurrentFile.Path][page.navState.CurrentLine()+1]; !ok {
+			page.commandHandler.RunCommand(&CreateBreakpoint{
+				Line: page.navState.CurrentLine() + 1, // Using 1 based indices on the backend.
+				File: page.navState.CurrentFile.Path,
+			})
+		}
+		return nil
+	}
+	if keyPressed(event, gConfig.toggleBreakpoint) {
 		bps := page.navState.Breakpoints
 		// If breakpoint on this line, remove it.
 		if len(bps[page.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
 			if bp, ok := bps[page.navState.CurrentFile.Path][page.navState.CurrentLine()+1]; ok {
-				page.commandHandler.RunCommand(&ClearBreakpoint{bp})
+				if bp.Disabled {
+					page.commandHandler.RunCommand(&CreateBreakpoint{
+						Line: page.navState.CurrentLine() + 1, // Using 1 based indices on the backend.
+						File: page.navState.CurrentFile.Path,
+					})
+				} else {
+					page.commandHandler.RunCommand(&ClearBreakpoint{bp.ID, true, nil})
+				}
+			}
+		}
+		return nil
+	}
+	if keyPressed(event, gConfig.clearBreakpoint) {
+		bps := page.navState.Breakpoints
+		// If breakpoint on this line, remove it.
+		if len(bps[page.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
+			if bp, ok := bps[page.navState.CurrentFile.Path][page.navState.CurrentLine()+1]; ok {
+				if bp.Disabled {
+					page.commandHandler.RunCommand(&ClearBreakpoint{bp.ID, false, bp})
+				} else {
+					page.commandHandler.RunCommand(&ClearBreakpoint{bp.ID, false, nil})
+				}
 				return nil
 			}
 		}
-
-		page.commandHandler.RunCommand(&CreateBreakpoint{
-			Line: page.navState.CurrentLine() + 1, // Using 1 based indices on the backend.
-			File: page.navState.CurrentFile.Path,
-		})
-		return nil
 	}
 	return event // Propagate.
 }

@@ -104,6 +104,8 @@ var (
 
 func main() {
 
+	getConfig()
+
 	// Parse flags after first argument.
 	exFlags := flag.NewFlagSet("", flag.ExitOnError)
 	exFlags.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")

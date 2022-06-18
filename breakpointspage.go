@@ -1,22 +1,21 @@
 package main
 
 import (
+	"dlvtui/nav"
 	"fmt"
+	"log"
 	"sort"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/go-delve/delve/service/api"
 	"github.com/rivo/tview"
 )
 
-// TODO: on select just call "switchgoroutine"
-// in addition, map debugger state behind current goroutine ID
-
 type BreakpointsPage struct {
-	commandHandler *CommandHandler
-	treeView       *tview.TreeView
-	widget         *tview.Frame
-	fileList       map[string]*tview.TreeNode
+	preRenderSelection *nav.UiBreakpoint // Id of selected breakpoint before rerender.
+	commandHandler     *CommandHandler
+	treeView           *tview.TreeView
+	widget             *tview.Frame
+	fileList           map[string]*tview.TreeNode
 }
 
 func NewBreakpointsPage() *BreakpointsPage {
@@ -44,18 +43,20 @@ func (page *BreakpointsPage) SetCommandHandler(ch *CommandHandler) {
 	page.commandHandler = ch
 }
 
-func (page *BreakpointsPage) RenderBreakpoints(bps []*api.Breakpoint) {
+func (page *BreakpointsPage) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 	sort.SliceStable(bps, func(i, j int) bool {
 		return bps[i].Line < bps[j].Line || bps[i].File < bps[j].File
 	})
 	page.fileList = make(map[string]*tview.TreeNode)
 	rootNode := page.treeView.GetRoot()
 	rootNode.ClearChildren()
+
+	var lastSelectedNode *tview.TreeNode = nil
+
 	for _, bp := range bps {
 		if bp.ID < 0 {
 			continue
 		}
-
 		fileNode, ok := page.fileList[bp.File]
 		if !ok {
 			fileNode = tview.NewTreeNode(fmt.Sprintf("[green::b]%s", bp.File)).
@@ -68,20 +69,36 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*api.Breakpoint) {
 			fileNode.SetColor(tcell.ColorBlack)
 		}
 
-		bpNode := tview.NewTreeNode(fmt.Sprintf("[green]%s[white]:%d", bp.FunctionName, bp.Line)).
+		bpNode := tview.NewTreeNode(fmt.Sprintf("[red]●  [green]%s[white]:%d", bp.FunctionName, bp.Line)).
 			SetSelectable(true)
+
+		if page.preRenderSelection != nil && bp.Line == page.preRenderSelection.Line && bp.File == page.preRenderSelection.File {
+			lastSelectedNode = bpNode
+		}
+
 		bpNode.SetColor(tcell.ColorBlack)
+
+		current := bp.Line == page.commandHandler.view.navState.CurrentDebuggerPos.Line &&
+			bp.File == page.commandHandler.view.navState.CurrentDebuggerPos.File
+		if current {
+			bpNode.SetText(fmt.Sprintf("[red]◎  [blue::b]%s[white]:%d", bp.FunctionName, bp.Line))
+		} else if bp.Disabled {
+			bpNode.SetText(fmt.Sprintf("[red]○  [blue::b]%s[white]:%d", bp.FunctionName, bp.Line))
+		}
 
 		bpNode.SetReference(bp)
 		bpNode.SetSelectable(true)
 		bpNode.SetSelectedFunc(func() {
-			ref := bpNode.GetReference().(*api.Breakpoint)
+			ref := bpNode.GetReference().(*nav.UiBreakpoint)
 			page.commandHandler.RunCommand(&OpenFile{
 				File:   ref.File,
 				AtLine: ref.Line - 1,
 			})
 		})
 		fileNode.AddChild(bpNode)
+	}
+	if lastSelectedNode != nil {
+		page.treeView.SetCurrentNode(lastSelectedNode)
 	}
 }
 
@@ -94,16 +111,32 @@ func (page *BreakpointsPage) GetName() string {
 }
 
 func (page *BreakpointsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	rune := event.Rune()
-	if rune == 'd' {
+	if keyPressed(event, gConfig.clearBreakpoint) {
 		selectedNode := page.treeView.GetCurrentNode()
-		selectedBp := selectedNode.GetReference().(*api.Breakpoint)
-		if selectedBp != nil {
-			page.fileList[selectedBp.File].RemoveChild(selectedNode)
-			page.commandHandler.RunCommand(&ClearBreakpoint{Breakpoint: selectedBp})
-			page.treeView.SetCurrentNode(page.fileList[selectedBp.File])
+		if selectedNode.GetReference() == nil {
+			return nil
 		}
+		selectedBp := selectedNode.GetReference().(*nav.UiBreakpoint)
+		page.fileList[selectedBp.File].RemoveChild(selectedNode)
+		if selectedBp.Disabled {
+			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp.ID, false, selectedBp})
+		} else {
+			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp.ID, false, nil})
+		}
+		page.treeView.SetCurrentNode(page.fileList[selectedBp.File])
 		return nil
+	} else if keyPressed(event, gConfig.toggleBreakpoint) {
+		selectedNode := page.treeView.GetCurrentNode()
+		if selectedNode.GetReference() == nil {
+			return nil
+		}
+		selectedBp := selectedNode.GetReference().(*nav.UiBreakpoint)
+		page.preRenderSelection = selectedBp
+		if !selectedBp.Disabled {
+			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp.ID, true, nil})
+		} else {
+			page.commandHandler.RunCommand(&CreateBreakpoint{selectedBp.Line, selectedBp.File})
+		}
 	}
 	page.treeView.InputHandler()(event, func(p tview.Primitive) {})
 	return nil

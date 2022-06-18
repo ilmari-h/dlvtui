@@ -75,7 +75,7 @@ func (pv *PageView) RefreshLineColumn() {
 	pv.codePage.perfTextView.ReRender()
 }
 
-func (pv *PageView) RenderBreakpoints(bps []*api.Breakpoint) {
+func (pv *PageView) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 	if bps == nil {
 		return
 	}
@@ -110,14 +110,13 @@ func (pv *PageView) LoadFile(file *nav.File, atLine int) {
 
 // Consumes event if changing page. Otherwise delegates to active page.
 func (pv *PageView) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	rune := event.Rune()
-	if rune == 'h' {
+	if keyPressed(event, gConfig.prevTab) {
 		if pv.index > 0 {
 			pv.index--
 			pv.pagesView.SwitchToPage(pv.CurrentPage().GetName())
 		}
 		return nil // Consume event
-	} else if rune == 'l' {
+	} else if keyPressed(event, gConfig.nextTab) {
 		if pv.index < len(pv.pages)-1 {
 			pv.index++
 			pv.pagesView.SwitchToPage(pv.CurrentPage().GetName())

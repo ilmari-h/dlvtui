@@ -19,6 +19,11 @@ type DebuggerPos struct {
 
 }
 
+type UiBreakpoint struct {
+	Disabled bool
+	*api.Breakpoint
+}
+
 func (nav *Nav) CurrentLine() int {
 	return nav.CurrentLines[nav.CurrentFile.Path]
 }
@@ -48,27 +53,14 @@ func (nav *Nav) ChangeCurrentFile(file *File){
 	nav.CurrentFile = file
 }
 
-func (nav *Nav) GetAllBreakpoints() []*api.Breakpoint {
-	bps := []*api.Breakpoint{}
+func (nav *Nav) GetAllBreakpoints() []*UiBreakpoint {
+	bps := []*UiBreakpoint{}
 	if nav.Breakpoints == nil {
 		return bps
 	}
 	for _, fileMap := range nav.Breakpoints {
 		for _, bp := range fileMap {
 			bps = append(bps, bp)
-		}
-	}
-	return bps
-}
-
-func (nav *Nav) GetBreakpointsByFile() map[string][]*api.Breakpoint {
-	bps := make(map[string][]*api.Breakpoint)
-	if nav.Breakpoints == nil {
-		return bps
-	}
-	for filename, fileMap := range nav.Breakpoints {
-		for _, bp := range fileMap {
-			bps[filename] = append(bps[filename], bp)
 		}
 	}
 	return bps
@@ -83,7 +75,8 @@ type Nav struct {
 	FileCache   map[string]*File
 	Goroutines []*api.Goroutine
 
-	Breakpoints map[string] map[int]*api.Breakpoint
+	Breakpoints map[string] map[int]*UiBreakpoint
+
 	CurrentFile *File
 	CurrentLines map[string]int
 	CurrentDebuggerPos DebuggerPos
@@ -105,7 +98,7 @@ func NewNav(projectPath string) Nav {
 		ProjectPath: projectPath,
 		FileCache:   make(map[string]*File),
 		CurrentLines: make(map[string]int),
-		Breakpoints: make(map[string] map[int]*api.Breakpoint),
+		Breakpoints: make(map[string] map[int]*UiBreakpoint),
 		Goroutines: []*api.Goroutine{},
 	}
 }

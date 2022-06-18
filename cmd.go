@@ -187,7 +187,7 @@ func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc
 		view.showNotification(err.Error(), true)
 		return
 	}
-	view.breakpointChan <- res
+	view.breakpointChan <- &nav.UiBreakpoint{false, res}
 }
 
 type OpenPage struct {
@@ -230,18 +230,28 @@ func (cmd *OpenFile) run(view *View, app *tview.Application, client *rpc2.RPCCli
 }
 
 type ClearBreakpoint struct {
-	Breakpoint *api.Breakpoint
+	BreakpointId int
+	Disable      bool
+	OfflineBp    *nav.UiBreakpoint
 }
 
 func (cmd *ClearBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
-	res, err := client.ClearBreakpoint(cmd.Breakpoint.ID)
+	// If removing breakpoint that doesn't exist in the backend, don't do an rpc call.
+	if cmd.OfflineBp != nil {
+		cmd.OfflineBp.ID = -1 // Mark as deleted
+		view.breakpointChan <- cmd.OfflineBp
+		return
+	}
+	res, err := client.ClearBreakpoint(cmd.BreakpointId)
 	if err != nil {
 		log.Printf("rpc error:%s\n", err.Error())
 		view.showNotification(err.Error(), true)
 		return
 	}
-	res.ID = -1 // Deleted
-	view.breakpointChan <- res
+	if !cmd.Disable {
+		res.ID = -1 // Mark as deleted
+	}
+	view.breakpointChan <- &nav.UiBreakpoint{cmd.Disable, res}
 }
 
 type Quit struct {
@@ -294,7 +304,7 @@ func (cmd *GetBreakpoints) run(view *View, app *tview.Application, client *rpc2.
 		return
 	}
 	for i := range bps {
-		view.breakpointChan <- bps[i]
+		view.breakpointChan <- &nav.UiBreakpoint{false, bps[i]}
 	}
 }
 

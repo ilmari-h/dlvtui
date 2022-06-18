@@ -53,7 +53,7 @@ type View struct {
 	notificationLine *tview.TextView
 
 	dbgMoveChan    chan *DebuggerMove
-	breakpointChan chan *api.Breakpoint
+	breakpointChan chan *nav.UiBreakpoint
 	navState       *nav.Nav
 
 	goroutineChan chan []*api.Goroutine
@@ -176,11 +176,12 @@ func (view *View) onDebuggerMove(dbgMove *DebuggerMove) {
 		log.Printf("Hit breakpoint in %s on line %d.", file, line)
 
 		// Update breakpoint that was hit
-		view.navState.Breakpoints[file][line] = newState.CurrentThread.Breakpoint
+		view.navState.Breakpoints[file][line] = &nav.UiBreakpoint{false, newState.CurrentThread.Breakpoint}
 	}
 
 	// Update pages.
 	view.pageView.RenderBreakpointHit(dbgMove.DbgState.CurrentThread.BreakpointInfo)
+	view.pageView.RenderBreakpoints(view.navState.GetAllBreakpoints())
 	view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
 	view.pageView.RenderJumpToLine(line - 1)
 }
@@ -192,7 +193,7 @@ func (view *View) onNewFile(newFile *nav.File) {
 	)
 }
 
-func (view *View) onNewBreakpoint(newBp *api.Breakpoint) {
+func (view *View) onNewBreakpoint(newBp *nav.UiBreakpoint) {
 
 	log.Printf("Got breakpoint in %s on line %d!", newBp.File, newBp.Line)
 
@@ -204,8 +205,9 @@ func (view *View) onNewBreakpoint(newBp *api.Breakpoint) {
 	}
 
 	if len(view.navState.Breakpoints[newBp.File]) == 0 {
-		view.navState.Breakpoints[newBp.File] = make(map[int]*api.Breakpoint)
+		view.navState.Breakpoints[newBp.File] = make(map[int]*nav.UiBreakpoint)
 	}
+
 	view.navState.Breakpoints[newBp.File][newBp.Line] = newBp
 	view.pageView.RenderBreakpoints(view.navState.GetAllBreakpoints())
 	view.pageView.RefreshLineColumn()
@@ -264,7 +266,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 		fileChan:       make(chan *nav.File, 1024),
 		dbgMoveChan:    make(chan *DebuggerMove, 1024),
 		goroutineChan:  make(chan []*api.Goroutine, 1024),
-		breakpointChan: make(chan *api.Breakpoint, 1024),
+		breakpointChan: make(chan *nav.UiBreakpoint, 1024),
 		navState:       navState,
 		currentMode:    Normal,
 		pageView:       nil,
