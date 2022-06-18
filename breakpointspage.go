@@ -3,7 +3,6 @@ package main
 import (
 	"dlvtui/nav"
 	"fmt"
-	"log"
 	"sort"
 
 	"github.com/gdamore/tcell/v2"
