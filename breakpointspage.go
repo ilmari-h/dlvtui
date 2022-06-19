@@ -19,7 +19,7 @@ type BreakpointsPage struct {
 
 func NewBreakpointsPage() *BreakpointsPage {
 	root := tview.NewTreeNode(".").
-		SetColor(tcell.ColorGreen)
+		SetColor(tcell.ColorDefault)
 
 	treeView := tview.NewTreeView().
 		SetRoot(root)
@@ -29,7 +29,11 @@ func NewBreakpointsPage() *BreakpointsPage {
 
 	pageFrame := tview.NewFrame(treeView).
 		SetBorders(0, 0, 0, 0, 0, 0).
-		AddText("[::b]Breakpoints:", true, tview.AlignLeft, tcell.ColorWhite)
+		AddText(fmt.Sprintf("[%s::b]Breakpoints:", iToColorS(gConfig.Colors.HeaderFg)),
+			true,
+			tview.AlignLeft,
+			tcell.ColorWhite,
+		)
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 	treeView.SetCurrentNode(root)
 	bp := BreakpointsPage{
@@ -59,7 +63,10 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 		}
 		fileNode, ok := page.fileList[bp.File]
 		if !ok {
-			fileNode = tview.NewTreeNode(fmt.Sprintf("[green::b]%s", bp.File)).
+			fileNode = tview.NewTreeNode(fmt.Sprintf("[%s::b]%s",
+				iToColorS(gConfig.Colors.ListHeaderFg),
+				bp.File,
+			)).
 				SetSelectable(true)
 			rootNode.AddChild(fileNode)
 			page.fileList[bp.File] = fileNode
@@ -69,7 +76,13 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 			fileNode.SetColor(tcell.ColorBlack)
 		}
 
-		bpNode := tview.NewTreeNode(fmt.Sprintf("[red]●  [green]%s[white]:%d", bp.FunctionName, bp.Line)).
+		bpNode := tview.NewTreeNode(fmt.Sprintf("[%s]●  [%s]%s[%s]:%d",
+			iToColorS(gConfig.Colors.BpFg),
+			iToColorS(gConfig.Colors.VarNameFg),
+			bp.FunctionName,
+			iToColorS(gConfig.Colors.LineFg),
+			bp.Line,
+		)).
 			SetSelectable(true)
 
 		if page.preRenderSelection != nil && bp.Line == page.preRenderSelection.Line && bp.File == page.preRenderSelection.File {
@@ -81,9 +94,21 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 		current := bp.Line == page.commandHandler.view.navState.CurrentDebuggerPos.Line &&
 			bp.File == page.commandHandler.view.navState.CurrentDebuggerPos.File
 		if current {
-			bpNode.SetText(fmt.Sprintf("[red]◎  [blue::b]%s[white]:%d", bp.FunctionName, bp.Line))
+			bpNode.SetText(fmt.Sprintf("[%s]◎  [%s::b]%s[%s]:%d",
+				iToColorS(gConfig.Colors.BpActiveFg),
+				iToColorS(gConfig.Colors.VarTypeFg),
+				bp.FunctionName,
+				iToColorS(gConfig.Colors.LineFg),
+				bp.Line,
+			))
 		} else if bp.Disabled {
-			bpNode.SetText(fmt.Sprintf("[red]○  [green]%s[white]:%d", bp.FunctionName, bp.Line))
+			bpNode.SetText(fmt.Sprintf("[%s]○  [%s]%s[%s]:%d",
+				iToColorS(gConfig.Colors.BpFg),
+				iToColorS(gConfig.Colors.VarNameFg),
+				bp.FunctionName,
+				iToColorS(gConfig.Colors.LineFg),
+				bp.Line,
+			))
 		}
 
 		bpNode.SetReference(bp)
@@ -111,7 +136,7 @@ func (page *BreakpointsPage) GetName() string {
 }
 
 func (page *BreakpointsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	if keyPressed(event, gConfig.clearBreakpoint) {
+	if keyPressed(event, gConfig.Keys.ClearBreakpoint) {
 		selectedNode := page.treeView.GetCurrentNode()
 		if selectedNode.GetReference() == nil {
 			return nil
@@ -126,7 +151,7 @@ func (page *BreakpointsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventK
 		}
 		page.treeView.SetCurrentNode(page.fileList[selectedBp.File])
 		return nil
-	} else if keyPressed(event, gConfig.toggleBreakpoint) {
+	} else if keyPressed(event, gConfig.Keys.ToggleBreakpoint) {
 		selectedNode := page.treeView.GetCurrentNode()
 		if selectedNode.GetReference() == nil {
 			return nil

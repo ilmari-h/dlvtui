@@ -29,7 +29,9 @@ type VarsPage struct {
 }
 
 func NewVarPage() *VarsPage {
-	localsHeader := tview.NewTreeNode("[green::b]locals").
+	localsHeader := tview.NewTreeNode(fmt.Sprintf("[%s::b]locals",
+		iToColorS(gConfig.Colors.ListHeaderFg),
+	)).
 		SetColor(tcell.ColorGreen).
 		SetSelectable(true)
 	localsHeader.SetSelectable(false)
@@ -38,7 +40,9 @@ func NewVarPage() *VarsPage {
 	localsTree.SetBackgroundColor(tcell.ColorDefault)
 	localsTree.SetInputCapture(listInputCaptureC)
 
-	argsHeader := tview.NewTreeNode("[green::b]arguments").
+	argsHeader := tview.NewTreeNode(fmt.Sprintf("[%s::b]arguments",
+		iToColorS(gConfig.Colors.ListHeaderFg),
+	)).
 		SetColor(tcell.ColorGreen).SetSelectable(true)
 	argsHeader.SetSelectable(false)
 	argsTree := tview.NewTreeView().SetRoot(argsHeader)
@@ -46,7 +50,9 @@ func NewVarPage() *VarsPage {
 	argsTree.SetBackgroundColor(tcell.ColorDefault)
 	argsTree.SetInputCapture(listInputCaptureC)
 
-	returnsHeader := tview.NewTreeNode("[green::b]return values").
+	returnsHeader := tview.NewTreeNode(fmt.Sprintf("[%s::b]return values",
+		iToColorS(gConfig.Colors.ListHeaderFg),
+	)).
 		SetColor(tcell.ColorGreen).
 		SetSelectable(true)
 	returnsHeader.SetSelectable(false)
@@ -62,7 +68,11 @@ func NewVarPage() *VarsPage {
 
 	pageFrame := tview.NewFrame(flex).
 		SetBorders(0, 0, 0, 0, 0, 0).
-		AddText("[::b]Current stack frame:", true, tview.AlignLeft, tcell.ColorWhite)
+		AddText(fmt.Sprintf("[%s::b]Current stack frame:", iToColorS(gConfig.Colors.HeaderFg)),
+			true,
+			tview.AlignLeft,
+			tcell.ColorWhite,
+		)
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 
 	return &VarsPage{
@@ -114,19 +124,24 @@ func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable
 }
 
 func getVarTitle(vr *api.Variable, expanded bool) string {
-	namestr := fmt.Sprintf("[green::b]%s", vr.Name)
-	typestr := fmt.Sprintf("[purple]<%s>[white:-:-]", vr.RealType)
+	namestr := fmt.Sprintf("[%s::b]%s", iToColorS(gConfig.Colors.VarNameFg), vr.Name)
+	typestr := fmt.Sprintf("[%s]<%s>[%s:-:-]",
+		iToColorS(gConfig.Colors.VarTypeFg),
+		vr.RealType,
+		iToColorS(gConfig.Colors.VarValueFg),
+	)
 	valstr := ""
-	addrstr := fmt.Sprintf("[gray] 0x%x", vr.Addr)
+	addrstr := fmt.Sprintf("[%s] 0x%x", iToColorS(gConfig.Colors.VarAddrFg), vr.Addr)
 	if vr.Value != "" {
 		valstr += fmt.Sprintf(" %s", vr.Value)
 	}
 	suffix := ""
 	if vr.Children != nil && len(vr.Children) > 0 {
+		suffix = fmt.Sprintf(" [%s]", iToColorS(gConfig.Colors.ListExpand))
 		if expanded {
-			suffix = " [blue]-"
+			suffix += "-"
 		} else {
-			suffix = " [blue]+"
+			suffix += "+"
 		}
 	}
 	return namestr + typestr + valstr + suffix + addrstr
@@ -192,7 +207,7 @@ func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 	}
 	// If moving with TAB/backTAB skip empty headers.
 	newI := page.varHeaderIdx
-	if keyPressed(event, gConfig.nextSection) {
+	if keyPressed(event, gConfig.Keys.NextSection) {
 		for i, t := range page.varHeaders {
 			if i <= page.varHeaderIdx {
 				continue
@@ -202,7 +217,7 @@ func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 				break
 			}
 		}
-	} else if keyPressed(event, gConfig.prevSection) {
+	} else if keyPressed(event, gConfig.Keys.PrevSection) {
 		for i := page.varHeaderIdx - 1; i >= 0; i-- {
 			if len(page.varHeaders[i].GetRoot().GetChildren()) != 0 {
 				newI = i

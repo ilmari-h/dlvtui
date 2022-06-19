@@ -113,13 +113,13 @@ func (pv *PageView) LoadFile(file *nav.File, atLine int) {
 
 // Consumes event if changing page. Otherwise delegates to active page.
 func (pv *PageView) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	if keyPressed(event, gConfig.prevTab) {
+	if keyPressed(event, gConfig.Keys.PrevTab) {
 		if pv.index > 0 {
 			pv.index--
 			pv.pagesView.SwitchToPage(pv.CurrentPage().GetName())
 		}
 		return nil // Consume event
-	} else if keyPressed(event, gConfig.nextTab) {
+	} else if keyPressed(event, gConfig.Keys.NextTab) {
 		if pv.index < len(pv.pages)-1 {
 			pv.index++
 			pv.pagesView.SwitchToPage(pv.CurrentPage().GetName())

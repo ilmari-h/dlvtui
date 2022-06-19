@@ -279,12 +279,16 @@ func (view *View) notifyProgramEnded(exitCode int) {
 
 func (view *View) showNotification(msg string, error bool) {
 	msgLen := len(msg)
-	msg += "\n[green::b]Press Enter to continue"
+	msg += fmt.Sprintf("\n[%s::b]Press Enter to continue", iToColorS(gConfig.Colors.NotifPromptFg))
 	if error {
 		msgLen += 7
-		view.notificationLine.SetText(fmt.Sprintf("[red::b]Error[-:-:-]: %s", msg))
+		view.notificationLine.SetText(fmt.Sprintf("[%s::b]Error[%s:-:-]: %s",
+			iToColorS(gConfig.Colors.NotifErrorFg),
+			iToColorS(gConfig.Colors.NotifMsgFg),
+			msg,
+		))
 	} else {
-		view.notificationLine.SetText(msg)
+		view.notificationLine.SetText(fmt.Sprintf("[%s]%s", iToColorS(gConfig.Colors.NotifMsgFg), msg))
 	}
 	_, _, boxWidth, _ := view.notificationLine.GetRect()
 	lines := int(math.Ceil(float64(msgLen) / float64(boxWidth)))

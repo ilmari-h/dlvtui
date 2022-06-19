@@ -20,13 +20,19 @@ func NewGoroutinePage() *GoroutinePage {
 	listView := tview.NewList()
 	listView.SetBackgroundColor(tcell.ColorDefault)
 	listView.ShowSecondaryText(false)
-	listView.SetSelectedBackgroundColor(tcell.ColorBlack)
-	listView.SetSelectedTextColor(tcell.ColorWhite)
+
+	selectedStyle := tcell.StyleDefault.
+		Foreground(iToColorTcell(gConfig.Colors.LineFg)).
+		Background(iToColorTcell(gConfig.Colors.ListSelectedBg)).
+		Attributes(tcell.AttrBold)
+
+	listView.SetSelectedStyle(selectedStyle)
+
 	listView.SetInputCapture(listInputCaptureC)
 
 	pageFrame := tview.NewFrame(listView).
 		SetBorders(0, 0, 0, 0, 0, 0).
-		AddText("[::b]Goroutines:", true, tview.AlignLeft, tcell.ColorWhite)
+		AddText("[::b]Goroutines:", true, tview.AlignLeft, iToColorTcell(gConfig.Colors.HeaderFg))
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 	gp := GoroutinePage{
 		listView: listView,
@@ -55,10 +61,24 @@ func (page *GoroutinePage) RenderGoroutines(grs []*api.Goroutine, currId int) {
 	selectedI := 0
 	page.renderedGoroutines = grs
 	for i, gor := range projectGrs {
-		label := fmt.Sprintf("  [blue]%d.[-] %s:%d", gor.ID, gor.CurrentLoc.File, gor.CurrentLoc.Line)
+		label := fmt.Sprintf("  [%s]%d.[%s] %s[%s]:%d",
+			iToColorS(gConfig.Colors.VarTypeFg),
+			gor.ID,
+			iToColorS(gConfig.Colors.VarNameFg),
+			gor.CurrentLoc.File,
+			iToColorS(gConfig.Colors.VarValueFg),
+			gor.CurrentLoc.Line,
+		)
 		if gor.ID == currId {
 			selectedI = i
-			label = fmt.Sprintf("> [blue::b]%d. [green]%s[white]:%d", gor.ID, gor.CurrentLoc.File, gor.CurrentLoc.Line)
+			label = fmt.Sprintf("> [%s::b]%d. [%s]%s[%s]:%d",
+				iToColorS(gConfig.Colors.VarTypeFg),
+				gor.ID,
+				iToColorS(gConfig.Colors.VarNameFg),
+				gor.CurrentLoc.File,
+				iToColorS(gConfig.Colors.VarValueFg),
+				gor.CurrentLoc.Line,
+			)
 		}
 		page.listView.AddItem(
 			label,
@@ -83,11 +103,11 @@ func (sp *GoroutinePage) GetName() string {
 }
 
 func (sp *GoroutinePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	if keyPressed(event, gConfig.lineDown) {
+	if keyPressed(event, gConfig.Keys.LineDown) {
 		sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() + 1)
 		return nil
 	}
-	if keyPressed(event, gConfig.lineUp) {
+	if keyPressed(event, gConfig.Keys.LineUp) {
 		if sp.listView.GetCurrentItem() > 0 {
 			sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() - 1)
 		}

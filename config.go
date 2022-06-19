@@ -10,37 +10,269 @@ import (
 	"github.com/spf13/viper"
 )
 
+var strColors = []string{
+	"black",   // 0
+	"maroon",  // 1
+	"green",   // 2
+	"olive",   // 3
+	"navy",    // 4
+	"purple",  // 5
+	"teal",    // 6
+	"silver",  // 7
+	"gray",    // 8
+	"red",     // 9
+	"lime",    // 10
+	"yellow",  // 11
+	"blue",    // 12
+	"fuchsia", // 13
+	"aqua",    // 14
+	"white",   // 15
+	"aliceblue",
+	"antiquewhite",
+	"aquamarine",
+	"azure",
+	"beige",
+	"bisque",
+	"blanchedalmond",
+	"blueviolet",
+	"brown",
+	"burlywood",
+	"cadetblue",
+	"chartreuse",
+	"chocolate",
+	"coral",
+	"cornflowerblue",
+	"cornsilk",
+	"crimson",
+	"darkblue",
+	"darkcyan",
+	"darkgoldenrod",
+	"darkgray",
+	"darkgreen",
+	"darkkhaki",
+	"darkmagenta",
+	"darkolivegreen",
+	"darkorange",
+	"darkorchid",
+	"darkred",
+	"darksalmon",
+	"darkseagreen",
+	"darkslateblue",
+	"darkslategray",
+	"darkturquoise",
+	"darkviolet",
+	"deeppink",
+	"deepskyblue",
+	"dimgray",
+	"dodgerblue",
+	"firebrick",
+	"floralwhite",
+	"forestgreen",
+	"gainsboro",
+	"ghostwhite",
+	"gold",
+	"goldenrod",
+	"greenyellow",
+	"honeydew",
+	"hotpink",
+	"indianred",
+	"indigo",
+	"ivory",
+	"khaki",
+	"lavender",
+	"lavenderblush",
+	"lawngreen",
+	"lemonchiffon",
+	"lightblue",
+	"lightcoral",
+	"lightcyan",
+	"lightgoldenrodyellow",
+	"lightgray",
+	"lightgreen",
+	"lightpink",
+	"lightsalmon",
+	"lightseagreen",
+	"lightskyblue",
+	"lightslategray",
+	"lightsteelblue",
+	"lightyellow",
+	"limegreen",
+	"linen",
+	"mediumaquamarine",
+	"mediumblue",
+	"mediumorchid",
+	"mediumpurple",
+	"mediumseagreen",
+	"mediumslateblue",
+	"mediumspringgreen",
+	"mediumturquoise",
+	"mediumvioletred",
+	"midnightblue",
+	"mintcream",
+	"mistyrose",
+	"moccasin",
+	"navajowhite",
+	"oldlace",
+	"olivedrab",
+	"orange",
+	"orangered",
+	"orchid",
+	"palegoldenrod",
+	"palegreen",
+	"paleturquoise",
+	"palevioletred",
+	"papayawhip",
+	"peachpuff",
+	"peru",
+	"pink",
+	"plum",
+	"powderblue",
+	"rebeccapurple",
+	"rosybrown",
+	"royalblue",
+	"saddlebrown",
+	"salmon",
+	"sandybrown",
+	"seagreen",
+	"seashell",
+	"sienna",
+	"skyblue",
+	"slateblue",
+	"slategray",
+	"snow",
+	"springgreen",
+	"steelblue",
+	"tan",
+	"thistle",
+	"tomato",
+	"turquoise",
+	"violet",
+	"wheat",
+	"whitesmoke",
+	"yellowgreen",
+	"grey",
+	"dimgrey",
+	"darkgrey",
+	"darkslategrey",
+	"lightgrey",
+	"lightslategrey",
+	"slategrey",
+}
+
+type Keys struct {
+	Breakpoint string
+	PageTop    string
+	PageEnd    string
+	LineUp     string
+	LineDown   string
+	PrevTab    string
+	NextTab    string
+
+	PrevSection string
+	NextSection string
+
+	SelectItem string
+
+	ToggleBreakpoint string
+	ClearBreakpoint  string
+}
+
+type Colors struct {
+	BpFg           int
+	BpActiveFg     int
+	LineFg         int
+	LineSelectedFg int
+	LineSelectedBg int
+	LineActiveFg   int
+	LineActiveBg   int
+
+	VarTypeFg  int
+	VarNameFg  int
+	VarValueFg int
+	VarAddrFg  int
+
+	ListHeaderFg   int
+	ListExpand     int
+	ListSelectedBg int
+	HeaderFg       int
+	CodeHeaderFg   int
+
+	NotifErrorFg  int
+	NotifPromptFg int
+	NotifMsgFg    int
+}
+
 type Config struct {
-	useTabNavigation bool
-	prevTab          string
-	nextTab          string
-
-	breakpoint string
-	pageTop    string
-	pageEnd    string
-	lineUp     string
-	lineDown   string
-
-	prevSection string
-	nextSection string
-
-	selectItem string
-
-	toggleBreakpoint string
-	clearBreakpoint  string
+	UseTabNavigation bool
+	Keys             Keys
+	Colors           Colors
 }
 
 var gConfig Config
 
+func NewConfig() Config {
+	keyconf := Keys{
+		Breakpoint:       "b",
+		PageTop:          "g",
+		PageEnd:          "G",
+		LineUp:           "k",
+		LineDown:         "j",
+		PrevTab:          "h",
+		NextTab:          "l",
+		PrevSection:      "Backtab",
+		NextSection:      "Tab",
+		SelectItem:       "Enter",
+		ToggleBreakpoint: "d",
+		ClearBreakpoint:  "D",
+	}
+	colorconf := Colors{
+		BpFg:           9,
+		BpActiveFg:     1,
+		LineFg:         15,
+		LineSelectedFg: 0,
+		LineSelectedBg: 15,
+		LineActiveFg:   0,
+		LineActiveBg:   6,
+
+		VarTypeFg:  6,
+		VarNameFg:  2,
+		VarValueFg: 15,
+		VarAddrFg:  8,
+
+		ListHeaderFg:   5,
+		ListExpand:     12,
+		ListSelectedBg: 0,
+		HeaderFg:       15,
+		CodeHeaderFg:   12,
+
+		NotifErrorFg:  1,
+		NotifPromptFg: 2,
+		NotifMsgFg:    15,
+	}
+	return Config{
+		UseTabNavigation: true,
+		Keys:             keyconf,
+		Colors:           colorconf,
+	}
+}
+
+func iToColorS(c int) string {
+	return strColors[c]
+}
+
+func iToColorTcell(c int) tcell.Color {
+	return tcell.ColorNames[strColors[c]]
+}
+
 // Override tree view input using custom keybindings.
 func listInputCaptureC(event *tcell.EventKey) *tcell.EventKey {
-	if keyPressed(event, gConfig.lineDown) {
+	if keyPressed(event, gConfig.Keys.LineDown) {
 		return tcell.NewEventKey(256, 'j', tcell.ModNone)
 	}
-	if keyPressed(event, gConfig.lineUp) {
+	if keyPressed(event, gConfig.Keys.LineUp) {
 		return tcell.NewEventKey(256, 'k', tcell.ModNone)
 	}
-	if keyPressed(event, gConfig.selectItem) {
+	if keyPressed(event, gConfig.Keys.SelectItem) {
 		return tcell.NewEventKey(tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone)
 	}
 	return nil
@@ -54,6 +286,8 @@ func keyPressed(event *tcell.EventKey, binding string) bool {
 }
 
 func getConfig() {
+	gConfig = NewConfig() // Initialize with default values.
+
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("$XDG_CONFIG_HOME/dlvtui")
@@ -69,40 +303,12 @@ func getConfig() {
 		log.Println("No config file found, using defaults.")
 	}
 
-	viper.SetDefault("useTabNavigation", true)
-
-	viper.SetDefault("keys.prevTab", "h")
-	viper.SetDefault("keys.nextTab", "l")
-
-	viper.SetDefault("keys.breakpoint", "b")
-	viper.SetDefault("keys.pageTop", "g")
-	viper.SetDefault("keys.pageEnd", "G")
-	viper.SetDefault("keys.lineUp", "k")
-	viper.SetDefault("keys.lineDown", "j")
-
-	viper.SetDefault("keys.toggleBreakpoint", "d")
-	viper.SetDefault("keys.clearBreakpoint", "D")
-
-	viper.SetDefault("keys.prevSection", "Backtab")
-	viper.SetDefault("keys.nextSection", "Tab")
-
-	viper.SetDefault("keys.selectItem", "Enter")
-
-	conf := Config{
-		useTabNavigation: viper.GetBool("useTabNavigation"),
-		prevTab:          viper.GetString("keys.prevTab"),
-		nextTab:          viper.GetString("keys.nextTab"),
-		breakpoint:       viper.GetString("keys.breakpoint"),
-		pageTop:          viper.GetString("keys.pageTop"),
-		pageEnd:          viper.GetString("keys.pageEnd"),
-		lineUp:           viper.GetString("keys.lineUp"),
-		lineDown:         viper.GetString("keys.lineDown"),
-		prevSection:      viper.GetString("keys.prevSection"),
-		nextSection:      viper.GetString("keys.nextSection"),
-		selectItem:       viper.GetString("keys.selectItem"),
-
-		toggleBreakpoint: viper.GetString("keys.toggleBreakpoint"),
-		clearBreakpoint:  viper.GetString("keys.clearBreakpoint"),
+	conf_err := viper.Unmarshal(&gConfig)
+	if conf_err != nil {
+		log.Fatalf("Unable to decode config into struct, %v", conf_err)
 	}
-	gConfig = conf
+	conf_keys_err := viper.UnmarshalKey("keys", &gConfig.Keys)
+	if conf_keys_err != nil {
+		log.Fatalf("Unable to decode key mapping into struct, %v", conf_keys_err)
+	}
 }

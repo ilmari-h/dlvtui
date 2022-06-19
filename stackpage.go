@@ -18,13 +18,18 @@ type StackPage struct {
 func NewStackPage() *StackPage {
 	listView := tview.NewList()
 	listView.SetBackgroundColor(tcell.ColorDefault)
-	listView.SetSelectedBackgroundColor(tcell.ColorBlack)
-	listView.SetSelectedTextColor(tcell.ColorWhite)
+
+	selectedStyle := tcell.StyleDefault.
+		Foreground(iToColorTcell(gConfig.Colors.LineFg)).
+		Background(iToColorTcell(gConfig.Colors.ListSelectedBg)).
+		Attributes(tcell.AttrBold)
+
+	listView.SetSelectedStyle(selectedStyle)
 	listView.SetInputCapture(listInputCaptureC)
 
 	pageFrame := tview.NewFrame(listView).
 		SetBorders(0, 0, 0, 0, 0, 0).
-		AddText("[::b]Call stack:", true, tview.AlignLeft, tcell.ColorWhite)
+		AddText("[::b]Call stack:", true, tview.AlignLeft, iToColorTcell(gConfig.Colors.HeaderFg))
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 
 	sp := StackPage{
@@ -47,11 +52,20 @@ func (sp *StackPage) RenderStack(stack []api.Stackframe, curr *api.Stackframe) {
 		dotIdx := strings.Index(fullName, ".")
 		pkgName := fullName[:dotIdx]
 		functionName := fullName[dotIdx:]
-		header := fmt.Sprintf("[white::b]%s[blue::-]%s", pkgName, functionName)
+		header := fmt.Sprintf("[%s::-]%s[%s::-]%s",
+			iToColorS(gConfig.Colors.VarValueFg),
+			pkgName,
+			iToColorS(gConfig.Colors.VarTypeFg),
+			functionName,
+		)
 
 		sp.listView.AddItem(
 			header,
-			fmt.Sprintf("%s[white]:%d", frame.File, frame.Line),
+			fmt.Sprintf("[%s]%s[white]:%d",
+				iToColorS(gConfig.Colors.VarNameFg),
+				frame.File,
+				frame.Line,
+			),
 			rune(48+i),
 			nil).
 			SetSelectedFunc(func(i int, s1, s2 string, r rune) {
@@ -77,11 +91,11 @@ func (page *StackPage) SetCommandHandler(ch *CommandHandler) {
 }
 
 func (sp *StackPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	if keyPressed(event, gConfig.lineDown) {
+	if keyPressed(event, gConfig.Keys.LineDown) {
 		sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() + 1)
 		return nil
 	}
-	if keyPressed(event, gConfig.lineUp) {
+	if keyPressed(event, gConfig.Keys.LineUp) {
 		if sp.listView.GetCurrentItem() > 0 {
 			sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() - 1)
 		}

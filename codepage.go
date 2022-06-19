@@ -38,7 +38,7 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 
 	pageFrame := tview.NewFrame(flex).
 		SetBorders(0, 0, 0, 0, 0, 0).
-		AddText("[::b]No file loaded.", true, tview.AlignLeft, tcell.ColorWhite)
+		AddText("[::b]No file loaded.", true, tview.AlignLeft, iToColorTcell(gConfig.Colors.HeaderFg))
 	pageFrame.SetBackgroundColor(tcell.ColorDefault)
 
 	return &CodePage{
@@ -54,7 +54,7 @@ func (page *CodePage) OpenFile(file *nav.File, atLine int) {
 
 	// Reset header.
 	page.pageFrame.Clear()
-	page.pageFrame.AddText(fmt.Sprintf("[::b]%s", file.Path), true, tview.AlignLeft, tcell.ColorBlue)
+	page.pageFrame.AddText(fmt.Sprintf("[::b]%s", file.Path), true, tview.AlignLeft, iToColorTcell(gConfig.Colors.CodeHeaderFg))
 
 	// Redraw flex view with new column width.
 	mv := getMaxLineColWidth(file.LineCount)
@@ -78,31 +78,31 @@ func (page *CodePage) GetWidget() tview.Primitive {
 }
 
 func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	if keyPressed(event, gConfig.lineDown) {
+	if keyPressed(event, gConfig.Keys.LineDown) {
 		if page.navState.CurrentFile != nil {
 			line := page.navState.SetLine(page.navState.CurrentLine() + 1)
 			page.perfTextView.scrollTo(line, false)
 		}
 		return nil
 	}
-	if keyPressed(event, gConfig.lineUp) {
+	if keyPressed(event, gConfig.Keys.LineUp) {
 		if page.navState.CurrentFile != nil {
 			line := page.navState.SetLine(page.navState.CurrentLine() - 1)
 			page.perfTextView.scrollTo(line, false)
 		}
 		return nil
 	}
-	if keyPressed(event, gConfig.pageTop) {
+	if keyPressed(event, gConfig.Keys.PageTop) {
 		line := page.navState.SetLine(0)
 		page.perfTextView.scrollTo(line, true)
 		return nil
 	}
-	if keyPressed(event, gConfig.pageEnd) {
+	if keyPressed(event, gConfig.Keys.PageEnd) {
 		line := page.navState.SetLine(page.navState.CurrentFile.LineCount - 2)
 		page.perfTextView.scrollTo(line, true)
 		return nil
 	}
-	if keyPressed(event, gConfig.breakpoint) {
+	if keyPressed(event, gConfig.Keys.Breakpoint) {
 		bps := page.navState.Breakpoints
 		if _, ok := bps[page.navState.CurrentFile.Path][page.navState.CurrentLine()+1]; !ok {
 			page.commandHandler.RunCommand(&CreateBreakpoint{
@@ -112,7 +112,7 @@ func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	}
-	if keyPressed(event, gConfig.toggleBreakpoint) {
+	if keyPressed(event, gConfig.Keys.ToggleBreakpoint) {
 		bps := page.navState.Breakpoints
 		// If breakpoint on this line, remove it.
 		if len(bps[page.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
@@ -129,7 +129,7 @@ func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 		}
 		return nil
 	}
-	if keyPressed(event, gConfig.clearBreakpoint) {
+	if keyPressed(event, gConfig.Keys.ClearBreakpoint) {
 		bps := page.navState.Breakpoints
 		// If breakpoint on this line, remove it.
 		if len(bps[page.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
