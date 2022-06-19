@@ -21,11 +21,30 @@ type Config struct {
 	lineUp     string
 	lineDown   string
 
+	prevSection string
+	nextSection string
+
+	selectItem string
+
 	toggleBreakpoint string
 	clearBreakpoint  string
 }
 
 var gConfig Config
+
+// Override tree view input using custom keybindings.
+func listInputCaptureC(event *tcell.EventKey) *tcell.EventKey {
+	if keyPressed(event, gConfig.lineDown) {
+		return tcell.NewEventKey(256, 'j', tcell.ModNone)
+	}
+	if keyPressed(event, gConfig.lineUp) {
+		return tcell.NewEventKey(256, 'k', tcell.ModNone)
+	}
+	if keyPressed(event, gConfig.selectItem) {
+		return tcell.NewEventKey(tcell.KeyEnter, rune(tcell.KeyEnter), tcell.ModNone)
+	}
+	return nil
+}
 
 func keyPressed(event *tcell.EventKey, binding string) bool {
 	if tBindingName, ok := tcell.KeyNames[event.Key()]; ok {
@@ -64,6 +83,11 @@ func getConfig() {
 	viper.SetDefault("keys.toggleBreakpoint", "d")
 	viper.SetDefault("keys.clearBreakpoint", "D")
 
+	viper.SetDefault("keys.prevSection", "Backtab")
+	viper.SetDefault("keys.nextSection", "Tab")
+
+	viper.SetDefault("keys.selectItem", "Enter")
+
 	conf := Config{
 		useTabNavigation: viper.GetBool("useTabNavigation"),
 		prevTab:          viper.GetString("keys.prevTab"),
@@ -73,6 +97,9 @@ func getConfig() {
 		pageEnd:          viper.GetString("keys.pageEnd"),
 		lineUp:           viper.GetString("keys.lineUp"),
 		lineDown:         viper.GetString("keys.lineDown"),
+		prevSection:      viper.GetString("keys.prevSection"),
+		nextSection:      viper.GetString("keys.nextSection"),
+		selectItem:       viper.GetString("keys.selectItem"),
 
 		toggleBreakpoint: viper.GetString("keys.toggleBreakpoint"),
 		clearBreakpoint:  viper.GetString("keys.clearBreakpoint"),

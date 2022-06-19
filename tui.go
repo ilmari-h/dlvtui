@@ -38,6 +38,8 @@ type DebuggerMove struct {
 }
 
 type View struct {
+	nwBlocking bool
+
 	commandChan chan string
 	keyHandler  KeyHandler
 	currentMode Mode
@@ -47,8 +49,9 @@ type View struct {
 	masterView  *tview.Flex
 	currentPage int
 
-	cmdLine    *tview.InputField
-	cmdHandler *CommandHandler
+	cmdLine       *tview.InputField
+	indicatorText *tview.TextView
+	cmdHandler    *CommandHandler
 
 	notificationLine *tview.TextView
 
@@ -116,6 +119,15 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 	return kp.event
 }
 
+func (view *View) SetBlocking(blocking bool) {
+	view.nwBlocking = blocking
+	if blocking {
+		view.indicatorText.SetText("▶ ")
+	} else {
+		view.indicatorText.SetText("◼ ")
+	}
+}
+
 /**
  * Open a file.
  * If file has been opened previously, resume on that line. Otherwise open at
@@ -143,12 +155,20 @@ func (view *View) uiEventLoop() {
 			view.onDebuggerMove(dbgMove)
 		case newFile := <-view.fileChan:
 			view.onNewFile(newFile)
-		case newBp := <-view.breakpointChan:
-			view.onNewBreakpoint(newBp)
 		case activeGoroutines := <-view.goroutineChan:
 			view.onNewGoroutines(activeGoroutines)
+		case newBp := <-view.breakpointChan:
+			view.onNewBreakpoint(newBp)
 		}
 	}
+}
+
+// Render that's done before a continue command, essentially just refresh current pages.
+func (view *View) renderPendingContinue() {
+
+	view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: "", Line: -1}
+	view.pageView.RenderBreakpoints(view.navState.GetAllBreakpoints())
+	view.pageView.RefreshLineColumn()
 }
 
 /**
@@ -167,8 +187,10 @@ func (view *View) onDebuggerMove(dbgMove *DebuggerMove) {
 	log.Printf("Debugger move inside file %s on line %d.", file, line-1)
 	view.OpenFile(view.navState.FileCache[file], line-1)
 
-	view.navState.CurrentStack = dbgMove.Stack
-	view.navState.CurrentStackFrame = &dbgMove.Stack[0]
+	if len(dbgMove.Stack) > 0 {
+		view.navState.CurrentStack = dbgMove.Stack
+		view.navState.CurrentStackFrame = &dbgMove.Stack[0]
+	}
 
 	// If hit breakpoint.
 	if newState.CurrentThread.BreakpointInfo != nil {
@@ -244,6 +266,17 @@ func (view *View) clearNotification() {
 	view.pageView.RenderJumpToLine(view.navState.CurrentLine())
 }
 
+func (view *View) notifyProgramEnded(exitCode int) {
+	msg := fmt.Sprintf("Program has finished with exit status %d.", exitCode)
+	log.Print(msg)
+	view.showNotification(msg, false)
+	if exitCode == 0 {
+		view.indicatorText.SetText("⚐ ")
+	} else {
+		view.indicatorText.SetText(fmt.Sprintf("⚑ %d ", exitCode))
+	}
+}
+
 func (view *View) showNotification(msg string, error bool) {
 	msgLen := len(msg)
 	msg += "\n[green::b]Press Enter to continue"
@@ -262,6 +295,7 @@ func (view *View) showNotification(msg string, error bool) {
 func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCClient) View {
 
 	var view = View{
+		nwBlocking:     false,
 		commandChan:    make(chan string, 1024),
 		fileChan:       make(chan *nav.File, 1024),
 		dbgMoveChan:    make(chan *DebuggerMove, 1024),
@@ -297,14 +331,24 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 	commandLine.SetBackgroundColor(tcell.ColorDefault)
 	commandLine.SetFieldBackgroundColor(tcell.ColorDefault)
 
+	indicatorText := tview.NewTextView()
+	indicatorText.SetBackgroundColor(tcell.ColorDefault)
+	indicatorText.SetTextAlign(tview.AlignRight)
+	indicatorText.SetText("◼ ")
+
+	bottomRow := tview.NewFlex().
+		AddItem(commandLine, 0, 1, false).
+		AddItem(indicatorText, 5, 1, false)
+
 	flex.AddItem(view.pageView.GetWidget(), 0, 1, false)
 	flex.AddItem(notificationLine, 1, 1, false)
-	flex.AddItem(commandLine, 1, 1, false)
+	flex.AddItem(bottomRow, 1, 1, false)
 
 	app.SetRoot(flex, true).SetFocus(flex)
 
 	view.masterView = flex
 	view.cmdLine = commandLine
+	view.indicatorText = indicatorText
 	view.notificationLine = notificationLine
 
 	go view.uiEventLoop()

@@ -25,6 +25,7 @@ func NewBreakpointsPage() *BreakpointsPage {
 		SetRoot(root)
 
 	treeView.SetBackgroundColor(tcell.ColorDefault)
+	treeView.SetInputCapture(listInputCaptureC)
 
 	pageFrame := tview.NewFrame(treeView).
 		SetBorders(0, 0, 0, 0, 0, 0).
@@ -82,7 +83,7 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 		if current {
 			bpNode.SetText(fmt.Sprintf("[red]◎  [blue::b]%s[white]:%d", bp.FunctionName, bp.Line))
 		} else if bp.Disabled {
-			bpNode.SetText(fmt.Sprintf("[red]○  [blue::b]%s[white]:%d", bp.FunctionName, bp.Line))
+			bpNode.SetText(fmt.Sprintf("[red]○  [green]%s[white]:%d", bp.FunctionName, bp.Line))
 		}
 
 		bpNode.SetReference(bp)
@@ -117,10 +118,11 @@ func (page *BreakpointsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventK
 		}
 		selectedBp := selectedNode.GetReference().(*nav.UiBreakpoint)
 		page.fileList[selectedBp.File].RemoveChild(selectedNode)
+
 		if selectedBp.Disabled {
-			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp.ID, false, selectedBp})
+			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp, false, selectedBp})
 		} else {
-			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp.ID, false, nil})
+			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp, false, nil})
 		}
 		page.treeView.SetCurrentNode(page.fileList[selectedBp.File])
 		return nil
@@ -132,7 +134,7 @@ func (page *BreakpointsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventK
 		selectedBp := selectedNode.GetReference().(*nav.UiBreakpoint)
 		page.preRenderSelection = selectedBp
 		if !selectedBp.Disabled {
-			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp.ID, true, nil})
+			page.commandHandler.RunCommand(&ClearBreakpoint{selectedBp, true, nil})
 		} else {
 			page.commandHandler.RunCommand(&CreateBreakpoint{selectedBp.Line, selectedBp.File})
 		}

@@ -36,6 +36,7 @@ func NewVarPage() *VarsPage {
 	localsTree := tview.NewTreeView().SetRoot(localsHeader)
 	localsTree.SetCurrentNode(localsHeader)
 	localsTree.SetBackgroundColor(tcell.ColorDefault)
+	localsTree.SetInputCapture(listInputCaptureC)
 
 	argsHeader := tview.NewTreeNode("[green::b]arguments").
 		SetColor(tcell.ColorGreen).SetSelectable(true)
@@ -43,6 +44,7 @@ func NewVarPage() *VarsPage {
 	argsTree := tview.NewTreeView().SetRoot(argsHeader)
 	argsTree.SetCurrentNode(argsHeader)
 	argsTree.SetBackgroundColor(tcell.ColorDefault)
+	argsTree.SetInputCapture(listInputCaptureC)
 
 	returnsHeader := tview.NewTreeNode("[green::b]return values").
 		SetColor(tcell.ColorGreen).
@@ -51,6 +53,7 @@ func NewVarPage() *VarsPage {
 	returnsTree := tview.NewTreeView().SetRoot(returnsHeader)
 	returnsTree.SetCurrentNode(returnsHeader)
 	returnsTree.SetBackgroundColor(tcell.ColorDefault)
+	returnsTree.SetInputCapture(listInputCaptureC)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(localsTree, 1, 1, false).
@@ -189,7 +192,7 @@ func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 	}
 	// If moving with TAB/backTAB skip empty headers.
 	newI := page.varHeaderIdx
-	if event.Key() == tcell.KeyTAB {
+	if keyPressed(event, gConfig.nextSection) {
 		for i, t := range page.varHeaders {
 			if i <= page.varHeaderIdx {
 				continue
@@ -199,7 +202,7 @@ func (page *VarsPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 				break
 			}
 		}
-	} else if event.Key() == tcell.KeyBacktab {
+	} else if keyPressed(event, gConfig.prevSection) {
 		for i := page.varHeaderIdx - 1; i >= 0; i-- {
 			if len(page.varHeaders[i].GetRoot().GetChildren()) != 0 {
 				newI = i

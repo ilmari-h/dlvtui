@@ -20,6 +20,7 @@ func NewStackPage() *StackPage {
 	listView.SetBackgroundColor(tcell.ColorDefault)
 	listView.SetSelectedBackgroundColor(tcell.ColorBlack)
 	listView.SetSelectedTextColor(tcell.ColorWhite)
+	listView.SetInputCapture(listInputCaptureC)
 
 	pageFrame := tview.NewFrame(listView).
 		SetBorders(0, 0, 0, 0, 0, 0).
@@ -76,12 +77,11 @@ func (page *StackPage) SetCommandHandler(ch *CommandHandler) {
 }
 
 func (sp *StackPage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
-	rune := event.Rune()
-	if rune == 'j' {
+	if keyPressed(event, gConfig.lineDown) {
 		sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() + 1)
 		return nil
 	}
-	if rune == 'k' {
+	if keyPressed(event, gConfig.lineUp) {
 		if sp.listView.GetCurrentItem() > 0 {
 			sp.listView.SetCurrentItem(sp.listView.GetCurrentItem() - 1)
 		}

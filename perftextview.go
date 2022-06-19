@@ -57,14 +57,14 @@ func (perfTextView *PerfTextView) scrollTo(line int, center bool) {
 	scroll := perfTextView.scroll
 
 	_, _, _, h := perfTextView.GetInnerRect()
-	perfTextView.currentViewHeight = h - 1
+	perfTextView.currentViewHeight = h
 	perfTextView.SetMaxLines(h)
 
 	// Index out of bounds!!
 	startIdx := perfTextView.lineIndices[scroll]
 	var endIdx = perfTextView.lineIndices[len(perfTextView.lineIndices)-1]
 	if scroll+perfTextView.currentViewHeight < len(perfTextView.lineIndices) {
-		endIdx = perfTextView.lineIndices[scroll+perfTextView.currentViewHeight]
+		endIdx = perfTextView.lineIndices[scroll+perfTextView.currentViewHeight] - 1
 	}
 
 	perfTextView.lineColumn.Render(scroll+1, scroll+perfTextView.currentViewHeight, perfTextView.virtualLine)

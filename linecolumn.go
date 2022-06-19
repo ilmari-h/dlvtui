@@ -39,9 +39,12 @@ func (lc *LineColumn) Render(lineStart, lineEnd, current int) {
 	breakpoints := lc.navState.Breakpoints[lc.navState.CurrentFile.Path]
 	for i := lineStart; i <= lineEnd; i++ {
 		bp := " "
-		if _, ok := breakpoints[i]; ok {
+		if fbp, ok := breakpoints[i]; ok && fbp.ID >= 0 {
 			if breakpoints[i].Disabled {
 				bp = "[red]○[-]"
+			} else if i == lc.navState.CurrentDebuggerPos.Line &&
+				lc.navState.CurrentFile.Path == lc.navState.CurrentDebuggerPos.File {
+				bp = "[red]◎[-]"
 			} else {
 				bp = "[red]●[-]"
 			}

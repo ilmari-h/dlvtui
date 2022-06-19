@@ -90,6 +90,9 @@ func (pv *PageView) RenderBreakpointHit(bp *api.BreakpointInfo) {
 }
 
 func (pv *PageView) RenderStack(sf []api.Stackframe, csf *api.Stackframe) {
+	if sf == nil || len(sf) == 0 || csf == nil {
+		return
+	}
 	pv.varsPage.RenderVariables(csf.Arguments, csf.Locals, []api.Variable{})
 	pv.stackPage.RenderStack(sf, csf)
 }

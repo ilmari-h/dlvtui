@@ -11,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	"dlvtui/dlvrpc"
 	"dlvtui/nav"
 
 	"github.com/go-delve/delve/service/rpc2"
@@ -23,9 +22,9 @@ func execDebuggerCmd(executable string, exArgs []string, port string) []string {
 	allArgs := []string{
 		"exec",
 		"--headless",
+		"--accept-multiclient",
 		"--api-version=2",
 		"--listen=127.0.0.1:" + port,
-		"--accept-multiclient",
 		executable,
 	}
 	if exArgs != nil && len(exArgs) > 0 {
@@ -40,9 +39,9 @@ func attachDebuggerCmd(pid string, exArgs []string, port string) []string {
 	allArgs := []string{
 		"attach",
 		"--headless",
+		"--accept-multiclient",
 		"--api-version=2",
 		"--listen=127.0.0.1:" + port,
-		"--accept-multiclient",
 		pid,
 	}
 	if exArgs != nil && len(exArgs) > 0 {
@@ -139,7 +138,7 @@ func main() {
 		startDebugger(execDebuggerCmd(targetFile, []string{}, port))
 	}
 
-	go dlvrpc.NewClient("127.0.0.1:"+port, clientC)
+	go NewClient("127.0.0.1:"+port, clientC)
 	go getFileList(dir, filesListC)
 
 	rpcClient := <-clientC

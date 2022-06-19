@@ -123,7 +123,7 @@ func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 						File: page.navState.CurrentFile.Path,
 					})
 				} else {
-					page.commandHandler.RunCommand(&ClearBreakpoint{bp.ID, true, nil})
+					page.commandHandler.RunCommand(&ClearBreakpoint{bp, true, nil})
 				}
 			}
 		}
@@ -135,9 +135,9 @@ func (page *CodePage) HandleKeyEvent(event *tcell.EventKey) *tcell.EventKey {
 		if len(bps[page.navState.CurrentFile.Path]) != 0 { // Using 1 based indices on the backend.
 			if bp, ok := bps[page.navState.CurrentFile.Path][page.navState.CurrentLine()+1]; ok {
 				if bp.Disabled {
-					page.commandHandler.RunCommand(&ClearBreakpoint{bp.ID, false, bp})
+					page.commandHandler.RunCommand(&ClearBreakpoint{bp, false, bp})
 				} else {
-					page.commandHandler.RunCommand(&ClearBreakpoint{bp.ID, false, nil})
+					page.commandHandler.RunCommand(&ClearBreakpoint{bp, false, nil})
 				}
 				return nil
 			}

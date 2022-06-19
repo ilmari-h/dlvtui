@@ -172,6 +172,7 @@ type CreateBreakpoint struct {
 }
 
 func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+
 	log.Printf("Creating bp in %s at line %d\n", cmd.File, cmd.Line)
 
 	res, err := client.CreateBreakpoint(&api.Breakpoint{
@@ -230,19 +231,21 @@ func (cmd *OpenFile) run(view *View, app *tview.Application, client *rpc2.RPCCli
 }
 
 type ClearBreakpoint struct {
-	BreakpointId int
-	Disable      bool
-	OfflineBp    *nav.UiBreakpoint
+	Breakpoint *nav.UiBreakpoint
+	Disable    bool
+	OfflineBp  *nav.UiBreakpoint
 }
 
 func (cmd *ClearBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+
 	// If removing breakpoint that doesn't exist in the backend, don't do an rpc call.
 	if cmd.OfflineBp != nil {
 		cmd.OfflineBp.ID = -1 // Mark as deleted
 		view.breakpointChan <- cmd.OfflineBp
 		return
 	}
-	res, err := client.ClearBreakpoint(cmd.BreakpointId)
+
+	res, err := client.ClearBreakpoint(cmd.Breakpoint.ID)
 	if err != nil {
 		log.Printf("rpc error:%s\n", err.Error())
 		view.showNotification(err.Error(), true)
@@ -266,15 +269,14 @@ type Continue struct {
 
 func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
-	// Reset debugger position for a pending continue and then re-render.
-	view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: "", Line: -1}
+	view.renderPendingContinue()
+	view.SetBlocking(true)
 
 	res := <-client.Continue()
+	view.SetBlocking(false)
 
 	if res.Exited {
-		msg := fmt.Sprintf("Program has finished with exit status %d.", res.ExitStatus)
-		log.Print(msg)
-		view.showNotification(msg, false)
+		view.notifyProgramEnded(res.ExitStatus)
 		return
 	}
 
