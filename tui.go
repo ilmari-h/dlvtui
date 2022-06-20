@@ -335,6 +335,17 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 	commandLine.SetBackgroundColor(tcell.ColorDefault)
 	commandLine.SetFieldBackgroundColor(tcell.ColorDefault)
 
+	suggestionStyle := tcell.StyleDefault.
+		Foreground(iToColorTcell(gConfig.Colors.MenuFg)).
+		Background(iToColorTcell(gConfig.Colors.MenuBg))
+
+	suggestionStyleSelected := tcell.StyleDefault.
+		Foreground(iToColorTcell(gConfig.Colors.MenuSelectedFg)).
+		Background(iToColorTcell(gConfig.Colors.MenuSelectedBg)).
+		Attributes(tcell.AttrBold)
+
+	commandLine.SetAutocompleteStyles(iToColorTcell(gConfig.Colors.MenuBg), suggestionStyle, suggestionStyleSelected)
+
 	indicatorText := tview.NewTextView()
 	indicatorText.SetBackgroundColor(tcell.ColorDefault)
 	indicatorText.SetTextAlign(tview.AlignRight)

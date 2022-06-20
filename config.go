@@ -200,6 +200,11 @@ type Colors struct {
 	NotifErrorFg  int
 	NotifPromptFg int
 	NotifMsgFg    int
+
+	MenuBg         int
+	MenuFg         int
+	MenuSelectedBg int
+	MenuSelectedFg int
 }
 
 type Config struct {
@@ -248,6 +253,11 @@ func NewConfig() Config {
 		NotifErrorFg:  1,
 		NotifPromptFg: 2,
 		NotifMsgFg:    15,
+
+		MenuBg:         7,
+		MenuFg:         0,
+		MenuSelectedBg: 15,
+		MenuSelectedFg: 0,
 	}
 	return Config{
 		UseTabNavigation: true,
