@@ -82,22 +82,20 @@ func startDebugger(commandArgs []string) int {
 }
 
 // Used for autosuggestions for now, a browser window in the future.
-func getFileList(projectRoot string, filesList chan []string) {
-	out, err := exec.Command("find", projectRoot, "-name", "*.go").Output()
-	if err != nil {
-		panic(err)
-	}
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	a := make([]string, 1)
-	for scanner.Scan() {
-		a = append(a, scanner.Text())
-	}
-	filesList <- a
+func getFileList(client *rpc2.RPCClient) chan []string {
+	filesListC := make(chan []string)
+	go func() {
+		files, err := client.ListSources("")
+		if err != nil {
+			log.Fatalf("Error tracing directory: %s", err)
+		}
+		filesListC <- files
+	}()
+	return filesListC
 }
 
 var (
 	port       string
-	dir        string
 	attachMode bool
 )
 
@@ -108,7 +106,6 @@ func main() {
 	// Parse flags after first argument.
 	exFlags := flag.NewFlagSet("", flag.ExitOnError)
 	exFlags.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
-	exFlags.StringVar(&dir, "dir", "./", "Source code directory.")
 	exFlags.BoolVar(&attachMode, "attach", false, "If enabled, attach debugger to process. Interpret first argument as PID.")
 
 	if len(os.Args) < 2 {
@@ -122,14 +119,8 @@ func main() {
 	exFlags.Parse(os.Args[2:])
 
 	target := os.Args[1]
-	dir, _ := filepath.Abs(dir)
-	log.Printf("Using dir: %s", dir)
-
-	app := tview.NewApplication()
-	nav := nav.NewNav(dir)
 
 	clientC := make(chan *rpc2.RPCClient)
-	filesListC := make(chan []string)
 
 	if attachMode {
 		startDebugger(attachDebuggerCmd(target, []string{}, port))
@@ -139,10 +130,20 @@ func main() {
 	}
 
 	go NewClient("127.0.0.1:"+port, clientC)
-	go getFileList(dir, filesListC)
-
 	rpcClient := <-clientC
-	nav.SourceFiles = <-filesListC
+	fileList := <-getFileList(rpcClient)
+
+	if fileList == nil || len(fileList) == 0 {
+		log.Fatalf("Error: empty source list.")
+	}
+
+	dir := filepath.Dir(fileList[0])
+	log.Printf("Using dir: %s", dir)
+
+	app := tview.NewApplication()
+	nav := nav.NewNav(dir)
+
+	nav.SourceFiles = fileList
 
 	CreateTui(app, &nav, rpcClient)
 

@@ -6,11 +6,10 @@
 
 ## Usage
 
-The client supports debugging by running an excecutable or by attaching to an existing process. 
-The debug target is the first argument, after which the following options can be provided: 
+The client supports debugging by running an excecutable or by attaching to an existing process.
+The debug target is the first argument, after which the following options can be provided:
 
 - `-attach` - If enabled, attach debugger to process. Interpret first argument as PID.
-- `-dir` - Source code directory. (default "./")
 - `-port` - The port dlv rpc server will listen to. (default "8181")
 
 ## Configuration
