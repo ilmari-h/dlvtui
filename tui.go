@@ -122,9 +122,9 @@ func (keyHandler *KeyHandler) handleKeyEvent(kp KeyPress) *tcell.EventKey {
 func (view *View) SetBlocking(blocking bool) {
 	view.nwBlocking = blocking
 	if blocking {
-		view.indicatorText.SetText("▶ ")
+		view.indicatorText.SetText(fmt.Sprintf("%s ", gConfig.Icons.IndRunning))
 	} else {
-		view.indicatorText.SetText("◼ ")
+		view.indicatorText.SetText(fmt.Sprintf("%s ", gConfig.Icons.IndStopped))
 	}
 }
 
@@ -271,9 +271,9 @@ func (view *View) notifyProgramEnded(exitCode int) {
 	log.Print(msg)
 	view.showNotification(msg, false)
 	if exitCode == 0 {
-		view.indicatorText.SetText("⚐ ")
+		view.indicatorText.SetText(fmt.Sprintf("%s ", gConfig.Icons.IndExitSuccess))
 	} else {
-		view.indicatorText.SetText(fmt.Sprintf("⚑ %d ", exitCode))
+		view.indicatorText.SetText(fmt.Sprintf("%s %d ", gConfig.Icons.IndExitError, exitCode))
 	}
 }
 
@@ -349,7 +349,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 	indicatorText := tview.NewTextView()
 	indicatorText.SetBackgroundColor(tcell.ColorDefault)
 	indicatorText.SetTextAlign(tview.AlignRight)
-	indicatorText.SetText("◼ ")
+	indicatorText.SetText(fmt.Sprintf("%s ", gConfig.Icons.IndStopped))
 
 	bottomRow := tview.NewFlex().
 		AddItem(commandLine, 0, 1, false).

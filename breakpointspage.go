@@ -76,8 +76,9 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 			fileNode.SetColor(tcell.ColorBlack)
 		}
 
-		bpNode := tview.NewTreeNode(fmt.Sprintf("[%s]●  [%s]%s[%s]:%d",
+		bpNode := tview.NewTreeNode(fmt.Sprintf("[%s]%s  [%s]%s[%s]:%d",
 			iToColorS(gConfig.Colors.BpFg),
+			gConfig.Icons.Bp,
 			iToColorS(gConfig.Colors.VarNameFg),
 			bp.FunctionName,
 			iToColorS(gConfig.Colors.LineFg),
@@ -94,16 +95,18 @@ func (page *BreakpointsPage) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 		current := bp.Line == page.commandHandler.view.navState.CurrentDebuggerPos.Line &&
 			bp.File == page.commandHandler.view.navState.CurrentDebuggerPos.File
 		if current {
-			bpNode.SetText(fmt.Sprintf("[%s]◎  [%s::b]%s[%s]:%d",
+			bpNode.SetText(fmt.Sprintf("[%s]%s  [%s::b]%s[%s]:%d",
 				iToColorS(gConfig.Colors.BpActiveFg),
+				gConfig.Icons.BpActive,
 				iToColorS(gConfig.Colors.VarTypeFg),
 				bp.FunctionName,
 				iToColorS(gConfig.Colors.LineFg),
 				bp.Line,
 			))
 		} else if bp.Disabled {
-			bpNode.SetText(fmt.Sprintf("[%s]○  [%s]%s[%s]:%d",
+			bpNode.SetText(fmt.Sprintf("[%s]%s  [%s]%s[%s]:%d",
 				iToColorS(gConfig.Colors.BpFg),
+				gConfig.Icons.BpDisabled,
 				iToColorS(gConfig.Colors.VarNameFg),
 				bp.FunctionName,
 				iToColorS(gConfig.Colors.LineFg),

@@ -207,10 +207,22 @@ type Colors struct {
 	MenuSelectedFg int
 }
 
+type Icons struct {
+	Bp         string
+	BpDisabled string
+	BpActive   string
+
+	IndRunning     string
+	IndStopped     string
+	IndExitSuccess string
+	IndExitError   string
+}
+
 type Config struct {
 	UseTabNavigation bool
 	Keys             Keys
 	Colors           Colors
+	Icons            Icons
 }
 
 var gConfig Config
@@ -259,10 +271,21 @@ func NewConfig() Config {
 		MenuSelectedBg: 15,
 		MenuSelectedFg: 0,
 	}
+	iconconf := Icons{
+		Bp:         "●",
+		BpDisabled: "○",
+		BpActive:   "◎",
+
+		IndRunning:     "▶",
+		IndStopped:     "◼",
+		IndExitSuccess: "⚑",
+		IndExitError:   "⚐",
+	}
 	return Config{
 		UseTabNavigation: true,
 		Keys:             keyconf,
 		Colors:           colorconf,
+		Icons:            iconconf,
 	}
 }
 
@@ -315,10 +338,14 @@ func getConfig() {
 
 	conf_err := viper.Unmarshal(&gConfig)
 	if conf_err != nil {
-		log.Fatalf("Unable to decode config into struct, %v", conf_err)
+		log.Fatalf("Error reading configuration: %v", conf_err)
 	}
 	conf_keys_err := viper.UnmarshalKey("keys", &gConfig.Keys)
 	if conf_keys_err != nil {
-		log.Fatalf("Unable to decode key mapping into struct, %v", conf_keys_err)
+		log.Fatalf("Error reading key configuration: %v", conf_keys_err)
+	}
+	conf_icons_err := viper.UnmarshalKey("icons", &gConfig.Keys)
+	if conf_keys_err != nil {
+		log.Fatalf("Error reading icon configuration: %v", conf_icons_err)
 	}
 }

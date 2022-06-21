@@ -41,15 +41,22 @@ func (lc *LineColumn) Render(lineStart, lineEnd, current int) {
 		bp := " "
 		if fbp, ok := breakpoints[i]; ok && fbp.ID >= 0 {
 			if breakpoints[i].Disabled {
-				bp = fmt.Sprintf("[%s]○[-::-]", iToColorS(gConfig.Colors.BpFg))
+				bp = fmt.Sprintf("[%s]%s[-::-]",
+					iToColorS(gConfig.Colors.BpFg),
+					gConfig.Icons.BpDisabled,
+				)
 			} else if i == lc.navState.CurrentDebuggerPos.Line &&
 				lc.navState.CurrentFile.Path == lc.navState.CurrentDebuggerPos.File {
-				bp = fmt.Sprintf("[%s:%s]◎[-::-]",
+				bp = fmt.Sprintf("[%s:%s]%s[-::-]",
 					iToColorS(gConfig.Colors.BpActiveFg),
 					iToColorS(gConfig.Colors.LineActiveBg),
+					gConfig.Icons.BpActive,
 				)
 			} else {
-				bp = fmt.Sprintf("[%s]●[-::-]", iToColorS(gConfig.Colors.BpFg))
+				bp = fmt.Sprintf("[%s]%s[-::-]",
+					iToColorS(gConfig.Colors.BpFg),
+					gConfig.Icons.Bp,
+				)
 			}
 		}
 
