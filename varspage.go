@@ -43,19 +43,19 @@ func NewVarPage() *VarsPage {
 	localsHeader := tview.NewTreeNode(fmt.Sprintf("[%s::b]locals",
 		iToColorS(gConfig.Colors.ListHeaderFg),
 	)).
-		SetColor(tcell.ColorGreen).
+		SetColor(iToColorTcell(gConfig.Colors.ListHeaderFg)).
 		SetSelectable(false)
 
 	argsHeader := tview.NewTreeNode(fmt.Sprintf("[%s::b]arguments",
 		iToColorS(gConfig.Colors.ListHeaderFg),
 	)).
-		SetColor(tcell.ColorGreen)
-	argsHeader.SetSelectable(false)
+		SetColor(tcell.ColorGreen).
+		SetSelectable(false)
 
 	returnsHeader := tview.NewTreeNode(fmt.Sprintf("[%s::b]return values",
 		iToColorS(gConfig.Colors.ListHeaderFg),
 	)).
-		SetColor(tcell.ColorGreen).
+		SetColor(iToColorTcell(gConfig.Colors.ListHeaderFg)).
 		SetSelectable(false)
 
 	treeView.GetRoot().AddChild(localsHeader)
