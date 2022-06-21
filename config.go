@@ -219,7 +219,6 @@ type Icons struct {
 }
 
 type Config struct {
-	UseTabNavigation bool
 	Keys             Keys
 	Colors           Colors
 	Icons            Icons
@@ -282,7 +281,6 @@ func NewConfig() Config {
 		IndExitError:   "⚐",
 	}
 	return Config{
-		UseTabNavigation: true,
 		Keys:             keyconf,
 		Colors:           colorconf,
 		Icons:            iconconf,

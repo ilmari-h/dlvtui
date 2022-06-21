@@ -15,3 +15,5 @@ The debug target is the first argument, after which the following options can be
 ## Configuration
 
 Keybindings, colors and behavior of the client are customizable via a yaml configuration file located at `$XDG_CONFIG_HOME/dlvtui/config.yaml`.
+
+Refer to `config.yaml` for an example configuration.

@@ -1,0 +1,55 @@
+# This is an example configuration with default values.
+# You should place your configuration in $XDG_CONFIG_HOME/dlvtui/config.yaml
+
+keys:
+  breakpoint:       "b"
+  pagetop:          "g"
+  pageend:          "G"
+  lineup:           "k"
+  linedown:         "j"
+  prevtab:          "h"
+  nexttab:          "l"
+  prevsection:      "Backtab"
+  nextsection:      "Tab"
+  selectitem:       "Enter"
+  togglebreakpoint: "d"
+  clearbreakpoint:  "D"
+
+colors:
+  bpfg:           9
+  bpactivefg:     1
+  linefg:         15
+  lineselectedfg: 0
+  lineselectedbg: 15
+  lineactivefg:   0
+  lineactivebg:   6
+
+  vartypefg:      6
+  varnamefg:      2
+  varvaluefg:     15
+  varaddrfg:      8
+
+  listheaderfg:   5
+  listexpand:     12
+  listselectedbg: 0
+  headerfg:       15
+  codeheaderfg:   12
+
+  notiferrorfg:   1
+  notifpromptfg:  2
+  notifmsgfg:     15
+
+  menubg:         7
+  menufg:         0
+  menuselectedbg: 15
+  menuselectedfg: 0
+
+icons:
+  bp:             "●"
+  bpdisabled:     "○"
+  bpactive:       "◎"
+
+  indrunning:     "▶"
+  indstopped:     "◼"
+  indexitsuccess: "⚑"
+  indexiterror:   "⚐"
