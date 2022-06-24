@@ -71,7 +71,7 @@ func (pv *PageView) CurrentPage() Page {
 	return pv.pages[pv.index]
 }
 
-func (pv *PageView) RefreshLineColumn() {
+func (pv *PageView) RefreshCodePage() {
 	pv.codePage.perfTextView.ReRender()
 }
 
@@ -89,7 +89,7 @@ func (pv *PageView) RenderBreakpointHit(bp *api.BreakpointInfo) {
 	pv.varsPage.RenderVariables(bp.Arguments, bp.Locals, []api.Variable{})
 }
 
-func (pv *PageView) RenderStack(sf []api.Stackframe, csf *api.Stackframe) {
+func (pv *PageView) RenderStack(sf []api.Stackframe, csf *api.Stackframe, returns []api.Variable) {
 	if sf == nil || len(sf) == 0 || csf == nil {
 		return
 	}

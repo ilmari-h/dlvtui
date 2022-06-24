@@ -18,7 +18,7 @@ func getMaxLineColWidth(maxLine int) int {
 	return len(strconv.Itoa(maxLine)) + 3
 }
 
-func NewLineColumn(width int, navState *nav.Nav) *LineColumn {
+func NewLineColumn(navState *nav.Nav) *LineColumn {
 	return &LineColumn{
 		navState: navState,
 		textView: tview.NewTextView(),
@@ -30,6 +30,8 @@ func (lc *LineColumn) SetWidth(nw int) {
 }
 
 func (lc *LineColumn) Render(lineStart, lineEnd, current int) {
+	lc.textView.SetBackgroundColor(iToColorTcell(gConfig.Colors.LineColumnBg))
+
 	if lc.navState == nil || lc.navState.CurrentFile == nil {
 		return
 	}

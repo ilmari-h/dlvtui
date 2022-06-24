@@ -23,6 +23,7 @@ colors:
   lineselectedbg: 15
   lineactivefg:   0
   lineactivebg:   6
+  linecolumnbg:   0
 
   vartypefg:      6
   varnamefg:      2

@@ -92,6 +92,7 @@ func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable
 
 	page.AddVars(page.locals, locals)
 	page.AddVars(page.args, args)
+	page.AddVars(page.returns, returns)
 
 	if !page.lastSelected.exists {
 		foundSelectable := false

@@ -27,11 +27,26 @@ var offset = 5
 
 func (perfTextView *PerfTextView) ReRender() {
 
-	perfTextView.lineColumn.Render(
-		perfTextView.scroll+1,
-		perfTextView.scroll+perfTextView.currentViewHeight,
-		perfTextView.virtualLine,
-	)
+	_, _, _, h := perfTextView.GetInnerRect()
+	perfTextView.render(perfTextView.scroll, perfTextView.virtualLine, h)
+}
+
+func (perfTextView *PerfTextView) render(scroll int, line int, maxHeight int) {
+
+	// No text loaded, don't render.
+	if len(perfTextView.lineIndices) == 0 {
+		return
+	}
+
+	firstLine := perfTextView.lineIndices[scroll]
+	var endIdx = perfTextView.lineIndices[len(perfTextView.lineIndices)-1]
+	if scroll+maxHeight < len(perfTextView.lineIndices) {
+		endIdx = perfTextView.lineIndices[scroll+maxHeight] - 1
+	}
+
+	perfTextView.lineColumn.Render(scroll+1, scroll+maxHeight, perfTextView.virtualLine)
+	perfTextView.SetText(perfTextView.fullText[firstLine:endIdx])
+
 }
 
 func (perfTextView *PerfTextView) scrollTo(line int, center bool) {
@@ -60,15 +75,7 @@ func (perfTextView *PerfTextView) scrollTo(line int, center bool) {
 	perfTextView.currentViewHeight = h
 	perfTextView.SetMaxLines(h)
 
-	// Index out of bounds!!
-	startIdx := perfTextView.lineIndices[scroll]
-	var endIdx = perfTextView.lineIndices[len(perfTextView.lineIndices)-1]
-	if scroll+perfTextView.currentViewHeight < len(perfTextView.lineIndices) {
-		endIdx = perfTextView.lineIndices[scroll+perfTextView.currentViewHeight] - 1
-	}
-
-	perfTextView.lineColumn.Render(scroll+1, scroll+perfTextView.currentViewHeight, perfTextView.virtualLine)
-	perfTextView.SetText(perfTextView.fullText[startIdx:endIdx])
+	perfTextView.render(scroll, perfTextView.virtualLine, perfTextView.currentViewHeight)
 }
 
 func (perfTextView *PerfTextView) ScrollTo(line int) {

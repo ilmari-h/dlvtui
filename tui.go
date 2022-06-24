@@ -140,7 +140,10 @@ func (view *View) OpenFile(file *nav.File, atLine int) {
 
 	// Render current stack frame if one is selected.
 	if view.navState.CurrentStackFrame != nil {
-		view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
+		view.pageView.RenderStack(
+			view.navState.CurrentStack,
+			view.navState.CurrentStackFrame,
+			view.navState.DbgState.CurrentThread.ReturnValues)
 	}
 }
 
@@ -168,7 +171,7 @@ func (view *View) renderPendingContinue() {
 
 	view.navState.CurrentDebuggerPos = nav.DebuggerPos{File: "", Line: -1}
 	view.pageView.RenderBreakpoints(view.navState.GetAllBreakpoints())
-	view.pageView.RefreshLineColumn()
+	view.pageView.RefreshCodePage()
 }
 
 /**
@@ -199,12 +202,15 @@ func (view *View) onDebuggerMove(dbgMove *DebuggerMove) {
 
 		// Update breakpoint that was hit
 		view.navState.Breakpoints[file][line] = &nav.UiBreakpoint{false, newState.CurrentThread.Breakpoint}
+		view.pageView.RenderBreakpointHit(dbgMove.DbgState.CurrentThread.BreakpointInfo)
 	}
 
 	// Update pages.
-	view.pageView.RenderBreakpointHit(dbgMove.DbgState.CurrentThread.BreakpointInfo)
 	view.pageView.RenderBreakpoints(view.navState.GetAllBreakpoints())
-	view.pageView.RenderStack(view.navState.CurrentStack, view.navState.CurrentStackFrame)
+	view.pageView.RenderStack(
+		view.navState.CurrentStack,
+		view.navState.CurrentStackFrame,
+		view.navState.DbgState.CurrentThread.ReturnValues)
 	view.pageView.RenderJumpToLine(line - 1)
 }
 
@@ -222,7 +228,7 @@ func (view *View) onNewBreakpoint(newBp *nav.UiBreakpoint) {
 	// ID -1 signifies deleted breakpoint.
 	if newBp.ID == -1 {
 		delete(view.navState.Breakpoints[newBp.File], newBp.Line)
-		view.pageView.RefreshLineColumn()
+		view.pageView.RefreshCodePage()
 		return
 	}
 
@@ -232,7 +238,7 @@ func (view *View) onNewBreakpoint(newBp *nav.UiBreakpoint) {
 
 	view.navState.Breakpoints[newBp.File][newBp.Line] = newBp
 	view.pageView.RenderBreakpoints(view.navState.GetAllBreakpoints())
-	view.pageView.RefreshLineColumn()
+	view.pageView.RefreshCodePage()
 }
 
 func (view *View) onNewGoroutines(activeGoroutines []*api.Goroutine) {
@@ -263,7 +269,9 @@ func (view *View) toCmdMode() {
 func (view *View) clearNotification() {
 	view.notificationLine.SetText("")
 	view.masterView.ResizeItem(view.notificationLine, 0, 0)
-	view.pageView.RenderJumpToLine(view.navState.CurrentLine())
+	view.masterView.ResizeItem(view.pageView.GetWidget(), 0, 1)
+	log.Print("Clearing notif")
+	view.pageView.RefreshCodePage()
 }
 
 func (view *View) notifyProgramEnded(exitCode int) {
@@ -292,8 +300,11 @@ func (view *View) showNotification(msg string, error bool) {
 	}
 	_, _, boxWidth, _ := view.notificationLine.GetRect()
 	lines := int(math.Ceil(float64(msgLen) / float64(boxWidth)))
+	_, _, _, linesText := view.pageView.pagesView.GetInnerRect()
 	view.masterView.ResizeItem(view.notificationLine, lines+1, 1)
-	view.pageView.RenderJumpToLine(view.navState.CurrentLine())
+	view.masterView.ResizeItem(view.pageView.GetWidget(), linesText-lines+1, 1)
+	log.Print("Adding notif")
+	view.pageView.RefreshCodePage()
 }
 
 func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCClient) View {
@@ -356,7 +367,7 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 		AddItem(indicatorText, 5, 1, false)
 
 	flex.AddItem(view.pageView.GetWidget(), 0, 1, false)
-	flex.AddItem(notificationLine, 1, 1, false)
+	flex.AddItem(notificationLine, 0, 0, false)
 	flex.AddItem(bottomRow, 1, 1, false)
 
 	app.SetRoot(flex, true).SetFocus(flex)

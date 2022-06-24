@@ -63,6 +63,7 @@ var AvailableCommands = []string{
 	"c", "continue",
 	"n", "next",
 	"s", "step",
+	"so", "stepout",
 	"q", "quit",
 }
 
@@ -89,6 +90,8 @@ func StringToLineCommand(s string, args []string) LineCommand {
 		return &Next{}
 	case "s", "step":
 		return &Step{}
+	case "so", "stepout":
+		return &StepOut{}
 	case "q", "quit":
 		return &Quit{}
 	}
@@ -275,24 +278,7 @@ func (cmd *Continue) run(view *View, app *tview.Application, client *rpc2.RPCCli
 	res := <-client.Continue()
 	view.SetBlocking(false)
 
-	if res.Exited {
-		view.notifyProgramEnded(res.ExitStatus)
-		return
-	}
-
-	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
-
-	if serr != nil {
-		log.Printf("rpc error:%s\n", serr.Error())
-		return
-	}
-
-	// Run ListGoroutines-command when ever new Goroutines may have been started.
-	lg := ListGoroutines{}
-	go lg.run(view, app, client)
-
-	log.Printf("Current stack render: %d", len(sres[0].Locals))
-	view.dbgMoveChan <- &DebuggerMove{res, sres}
+	debuggerMoveCommand(view, app, client, res)
 }
 
 type GetBreakpoints struct {
@@ -343,39 +329,62 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 	view.dbgMoveChan <- &DebuggerMove{nres, sres}
 }
 
-type Step struct {
-}
+func debuggerMoveCommand(view *View, app *tview.Application, client *rpc2.RPCClient, cmdRes *api.DebuggerState) {
 
-func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
-	nres, nerr := client.Step()
-	if nres.Exited {
-		msg := fmt.Sprintf("Program has finished with exit status %d.", nres.ExitStatus)
-		log.Print(msg)
-		view.showNotification(msg, false)
+	if cmdRes.Exited {
+		view.notifyProgramEnded(cmdRes.ExitStatus)
 		return
 	}
 
-	if nerr != nil {
-		log.Printf("rpc error:%s\n", nerr.Error())
-		return
-	}
-
-	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
+	sres, serr := client.Stacktrace(cmdRes.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if serr != nil {
 		log.Printf("rpc error:%s\n", serr.Error())
 		return
 	}
 
-	if view.navState.FileCache[nres.CurrentThread.File] == nil {
+	// If file about to move has not been loaded, load it now.
+	if view.navState.FileCache[cmdRes.CurrentThread.File] == nil {
 		ch := make(chan *nav.File)
-		go loadFile(nres.CurrentThread.File, ch)
+		go loadFile(cmdRes.CurrentThread.File, ch)
 
 		// Block until file loaded so it can be opened.
 		file := <-ch
-		view.OpenFile(file, nres.CurrentThread.Line-1)
+		view.OpenFile(file, cmdRes.CurrentThread.Line-1)
 	}
-	view.dbgMoveChan <- &DebuggerMove{nres, sres}
+	view.dbgMoveChan <- &DebuggerMove{cmdRes, sres}
+
+}
+
+type Step struct {
+}
+
+func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	nres, nerr := client.Step()
+
+	if nerr != nil {
+		log.Printf("rpc error:%s\n", nerr.Error())
+		return
+	}
+
+	debuggerMoveCommand(view, app, client, nres)
+}
+
+type StepOut struct {
+}
+
+func (cmd *StepOut) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	nres, nerr := client.StepOut()
+
+	if len(nres.CurrentThread.ReturnValues) > 0 {
+		log.Printf("HAVE ret vals")
+	}
+	if nerr != nil {
+		log.Printf("rpc error:%s\n", nerr.Error())
+		return
+	}
+
+	debuggerMoveCommand(view, app, client, nres)
 }
 
 type ListGoroutines struct {

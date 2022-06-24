@@ -185,6 +185,7 @@ type Colors struct {
 	LineSelectedBg int
 	LineActiveFg   int
 	LineActiveBg   int
+	LineColumnBg   int
 
 	VarTypeFg  int
 	VarNameFg  int
@@ -219,9 +220,9 @@ type Icons struct {
 }
 
 type Config struct {
-	Keys             Keys
-	Colors           Colors
-	Icons            Icons
+	Keys   Keys
+	Colors Colors
+	Icons  Icons
 }
 
 var gConfig Config
@@ -249,6 +250,7 @@ func NewConfig() Config {
 		LineSelectedBg: 15,
 		LineActiveFg:   0,
 		LineActiveBg:   6,
+		LineColumnBg:   0,
 
 		VarTypeFg:  6,
 		VarNameFg:  2,
@@ -281,9 +283,9 @@ func NewConfig() Config {
 		IndExitError:   "⚐",
 	}
 	return Config{
-		Keys:             keyconf,
-		Colors:           colorconf,
-		Icons:            iconconf,
+		Keys:   keyconf,
+		Colors: colorconf,
+		Icons:  iconconf,
 	}
 }
 

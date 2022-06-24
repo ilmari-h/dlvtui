@@ -2,7 +2,7 @@
 
 <img src="preview.gif" width="500">
 
-***dlv-tui*** is a terminal interface for the [delve debugger](https://github.com/go-delve/delve). It's target audience is Go developers who prefer to use terminal only tools in their workflow. This frontend's goal is to provide all the functionality of the delve cli-debugger wrapped in an efficient tui.
+***dlv-tui*** is a terminal user interface for the [delve debugger](https://github.com/go-delve/delve). Made for Go developers who prefer using terminal-only tools in their workflow. The goal is to provide all functionality of the delve cli-debugger, wrapped in a TUI.
 
 ## Usage
 

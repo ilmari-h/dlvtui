@@ -20,20 +20,22 @@ type CodePage struct {
 func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 
 	textView := NewPerfTextView()
-	lineColumn := NewLineColumn(5, navState)
+
+	lineColumn := NewLineColumn(navState)
 	textView.SetLineColumn(lineColumn)
 	lineColumn.textView.
 		SetRegions(true).
 		SetDynamicColors(true).
 		SetChangedFunc(func() {
 			app.Draw()
-		})
+		}).
+		SetBackgroundColor(tcell.ColorDefault)
+
 	textView.SetBackgroundColor(tcell.ColorDefault)
 	textView.SetWrap(false)
-	textView.SetText("")
 
 	flex := tview.NewFlex().SetDirection(tview.FlexColumn).
-		AddItem(lineColumn.textView, 5, 1, false).
+		AddItem(lineColumn.textView, 1, 1, false).
 		AddItem(textView, 0, 1, false)
 
 	pageFrame := tview.NewFrame(flex).
