@@ -17,7 +17,7 @@ import (
 // TODO: make configurable
 var defaultConfig = api.LoadConfig{
 	FollowPointers:     true,
-	MaxVariableRecurse: 10,
+	MaxVariableRecurse: 5,
 	MaxStringLen:       999,
 	MaxArrayValues:     999,
 	MaxStructFields:    -1,

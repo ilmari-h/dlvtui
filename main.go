@@ -137,7 +137,14 @@ func main() {
 		log.Fatalf("Error: empty source list.")
 	}
 
-	dir := filepath.Dir(fileList[0])
+	// Resolve dir. For now just find by assuming it's the one prefixed by /home.
+	var dir string
+	for _, f := range fileList {
+		if strings.HasPrefix(f, "/home/") && !strings.Contains(f, "/go/pkg") {
+			dir = filepath.Dir(f)
+			break
+		}
+	}
 	log.Printf("Using dir: %s", dir)
 
 	app := tview.NewApplication()
