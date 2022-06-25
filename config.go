@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"log"
 	"net"
 	"time"
 
 	"github.com/go-delve/delve/service/rpc2"
+	log "github.com/sirupsen/logrus"
 )
 
 func NewClient(addr string, clientChan chan *rpc2.RPCClient) {
@@ -20,6 +20,9 @@ func NewClient(addr string, clientChan chan *rpc2.RPCClient) {
 			break
 		}
 		attempts++
+		if attempts >= 50 {
+			log.Fatalf("Failed to connect client to dlv backend after %d attempts!", attempts)
+		}
 		log.Printf("Client connection to %s refused, retry number %d.", addr, attempts)
 	}
 }

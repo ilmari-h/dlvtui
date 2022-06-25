@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"dlvtui/nav"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/rivo/tview"
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO: make configurable
@@ -28,7 +28,7 @@ func loadFile(path string, fileChan chan *nav.File) {
 	f, err := os.Open(path)
 	defer f.Close()
 	if err != nil {
-		log.Printf("Error loading file %s:\n%s\n", path, err)
+		log.Printf("Error loading file %s: %s", path, err)
 		return
 	}
 	scanner := bufio.NewScanner(f)
@@ -49,7 +49,7 @@ func loadFile(path string, fileChan chan *nav.File) {
 		LineCount:   len(lineIndices),
 		LineIndices: lineIndices,
 	}
-	log.Printf("Loaded file %s \n", absPath)
+	log.Printf("Loaded file: %s", absPath)
 	fileChan <- &file
 }
 
@@ -176,7 +176,7 @@ type CreateBreakpoint struct {
 
 func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 
-	log.Printf("Creating bp in %s at line %d\n", cmd.File, cmd.Line)
+	log.Printf("Creating bp in %s at line %d", cmd.File, cmd.Line)
 
 	res, err := client.CreateBreakpoint(&api.Breakpoint{
 		File:       cmd.File,
@@ -187,7 +187,7 @@ func (cmd *CreateBreakpoint) run(view *View, app *tview.Application, client *rpc
 	})
 
 	if err != nil {
-		log.Printf("rpc error:%s\n", err.Error())
+		log.Printf("rpc error: %s", err.Error())
 		view.showNotification(err.Error(), true)
 		return
 	}
@@ -250,7 +250,7 @@ func (cmd *ClearBreakpoint) run(view *View, app *tview.Application, client *rpc2
 
 	res, err := client.ClearBreakpoint(cmd.Breakpoint.ID)
 	if err != nil {
-		log.Printf("rpc error:%s\n", err.Error())
+		log.Printf("rpc error: %s", err.Error())
 		view.showNotification(err.Error(), true)
 		return
 	}
@@ -287,7 +287,7 @@ type GetBreakpoints struct {
 func (cmd *GetBreakpoints) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	bps, err := client.ListBreakpoints(true)
 	if err != nil {
-		log.Printf("rpc error:%s\n", err.Error())
+		log.Printf("rpc error: %s", err.Error())
 		view.showNotification(err.Error(), true)
 		return
 	}
@@ -304,7 +304,7 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 	nres, nerr := client.Next()
 
 	if nerr != nil {
-		log.Printf("rpc error:%s\n", nerr.Error())
+		log.Printf("rpc error: %s", nerr.Error())
 		return
 	}
 
@@ -318,7 +318,7 @@ func (cmd *Next) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 	sres, serr := client.Stacktrace(nres.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if serr != nil {
-		log.Printf("rpc error:%s\n", serr.Error())
+		log.Printf("rpc error: %s", serr.Error())
 		return
 	}
 
@@ -339,7 +339,7 @@ func debuggerMoveCommand(view *View, app *tview.Application, client *rpc2.RPCCli
 	sres, serr := client.Stacktrace(cmdRes.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if serr != nil {
-		log.Printf("rpc error:%s\n", serr.Error())
+		log.Printf("rpc error: %s", serr.Error())
 		return
 	}
 
@@ -363,7 +363,7 @@ func (cmd *Step) run(view *View, app *tview.Application, client *rpc2.RPCClient)
 	nres, nerr := client.Step()
 
 	if nerr != nil {
-		log.Printf("rpc error:%s\n", nerr.Error())
+		log.Printf("rpc error: %s", nerr.Error())
 		return
 	}
 
@@ -376,11 +376,8 @@ type StepOut struct {
 func (cmd *StepOut) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	nres, nerr := client.StepOut()
 
-	if len(nres.CurrentThread.ReturnValues) > 0 {
-		log.Printf("HAVE ret vals")
-	}
 	if nerr != nil {
-		log.Printf("rpc error:%s\n", nerr.Error())
+		log.Printf("rpc error: %s", nerr.Error())
 		return
 	}
 
@@ -393,7 +390,7 @@ type ListGoroutines struct {
 func (cmd *ListGoroutines) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
 	lres, _, lerr := client.ListGoroutines(0, 99)
 	if lerr != nil {
-		log.Printf("rpc error:%s\n", lerr.Error())
+		log.Printf("rpc error: %s", lerr.Error())
 		return
 	}
 	log.Printf("Fetched active goroutines: %v", lres)
@@ -408,14 +405,14 @@ func (cmd *SwitchGoroutines) run(view *View, app *tview.Application, client *rpc
 	log.Printf("Switching to goroutine %d.", cmd.Id)
 	res, err := client.SwitchGoroutine(cmd.Id)
 	if err != nil {
-		log.Printf("rpc error:%s\n", err.Error())
+		log.Printf("rpc error: %s", err.Error())
 		view.showNotification(err.Error(), true)
 		return
 	}
 	sres, serr := client.Stacktrace(res.CurrentThread.GoroutineID, 5, api.StacktraceSimple, &defaultConfig)
 
 	if serr != nil {
-		log.Printf("rpc error:%s\n", serr.Error())
+		log.Printf("rpc error: %s", serr.Error())
 		return
 	}
 

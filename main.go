@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/rivo/tview"
+	log "github.com/sirupsen/logrus"
 )
 
 func execDebuggerCmd(executable string, exArgs []string, port string) []string {
@@ -52,7 +52,7 @@ func attachDebuggerCmd(pid string, exArgs []string, port string) []string {
 }
 
 func startDebugger(commandArgs []string) int {
-	log.Printf("Starting dlv-backend:\ndlv %s", strings.Join(commandArgs, " "))
+	log.Printf("Starting dlv-backend: dlv %s", strings.Join(commandArgs, " "))
 	cmd := exec.Command(
 		"dlv",
 		commandArgs...,
@@ -62,7 +62,7 @@ func startDebugger(commandArgs []string) int {
 	}
 	stdout, _ := cmd.StdoutPipe()
 	if err := cmd.Start(); err != nil {
-		log.Printf("Error starting dlv-backend:\n%s", string(err.Error()))
+		log.Printf("Error starting dlv-backend: %s", string(err.Error()))
 		panic(err)
 	}
 
@@ -71,10 +71,10 @@ func startDebugger(commandArgs []string) int {
 	go func() {
 		in := bufio.NewScanner(stdout)
 		for in.Scan() {
-			log.Printf("dlv-backend:\n%s", in.Text())
+			log.Printf("dlv-backend:%s", in.Text())
 		}
 		if err := in.Err(); err != nil {
-			log.Printf("Error:\n%s", err)
+			log.Printf("Error: %s", err)
 		}
 	}()
 
@@ -96,17 +96,17 @@ func getFileList(client *rpc2.RPCClient) chan []string {
 
 var (
 	port       string
+	logfile    string
 	attachMode bool
 )
 
-func main() {
-
-	getConfig()
+func init() {
 
 	// Parse flags after first argument.
 	exFlags := flag.NewFlagSet("", flag.ExitOnError)
 	exFlags.StringVar(&port, "port", "8181", "The port dlv rpc server will listen to.")
 	exFlags.BoolVar(&attachMode, "attach", false, "If enabled, attach debugger to process. Interpret first argument as PID.")
+	exFlags.StringVar(&logfile, "logfile", "$XDG_DATA_HOME/dlvtui.log", "Path to the log file.")
 
 	if len(os.Args) < 2 {
 		fmt.Println("No debug target provided.\n" +
@@ -115,8 +115,20 @@ func main() {
 		os.Exit(1)
 		return
 	}
-
 	exFlags.Parse(os.Args[2:])
+
+	log.SetLevel(log.InfoLevel)
+	file, err := os.OpenFile(os.ExpandEnv(logfile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		log.SetOutput(file)
+	} else {
+		log.Fatal("Failed to log to file: " + err.Error())
+	}
+}
+
+func main() {
+
+	getConfig()
 
 	target := os.Args[1]
 

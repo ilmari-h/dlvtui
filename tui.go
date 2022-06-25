@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/go-delve/delve/service/api"
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/rivo/tview"
+	log "github.com/sirupsen/logrus"
 )
 
 type Mode int

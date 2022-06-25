@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"math"
 
 	"github.com/rivo/tview"
+	log "github.com/sirupsen/logrus"
 )
 
 type PerfTextView struct {
@@ -56,7 +56,7 @@ func (perfTextView *PerfTextView) scrollTo(line int, center bool) {
 		perfTextView.scroll = int(math.Max(0,
 			float64(line)-math.Max(1, float64(perfTextView.currentViewHeight/2)),
 		))
-		log.Printf("Jumping to line %d", perfTextView.scroll)
+		log.Debugf("Jumping to line %d", perfTextView.scroll)
 	} else {
 		// Scroll down
 		if perfTextView.virtualLine > offset &&

@@ -6,13 +6,12 @@
 
 ## Usage
 
-NOTE: Currently logs are written directly to stderr. So run the program with `2> somefile.log` to direct them elsewhere.
-
 The client supports debugging by running an excecutable or by attaching to an existing process.
 The debug target is the first argument, after which the following options can be provided:
 
 - `-attach` - If enabled, attach debugger to process. Interpret first argument as PID.
 - `-port` - The port dlv rpc server will listen to. (default "8181")
+- `-logfile` - Path to the log file. (default "$XDG_DATA_HOME/dlvtui.log")
 
 ## Configuration
 
