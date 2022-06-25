@@ -93,7 +93,7 @@ func (pv *PageView) RenderStack(sf []api.Stackframe, csf *api.Stackframe, return
 	if sf == nil || len(sf) == 0 || csf == nil {
 		return
 	}
-	pv.varsPage.RenderVariables(csf.Arguments, csf.Locals, []api.Variable{})
+	pv.varsPage.RenderVariables(csf.Arguments, csf.Locals, returns)
 	pv.stackPage.RenderStack(sf, csf)
 }
 

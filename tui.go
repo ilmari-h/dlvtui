@@ -378,7 +378,9 @@ func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCCli
 	view.notificationLine = notificationLine
 
 	go view.uiEventLoop()
-
+	go func() {
+		rpcClient.SetReturnValuesLoadConfig(&defaultConfig)
+	}()
 	go view.cmdHandler.RunCommand(&GetBreakpoints{})
 
 	return view

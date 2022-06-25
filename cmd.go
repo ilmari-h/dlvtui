@@ -60,6 +60,7 @@ var AvailableCommands = []string{
 	"goroutines",
 	"locals",
 	"code",
+	"restart",
 	"c", "continue",
 	"n", "next",
 	"s", "step",
@@ -84,6 +85,8 @@ func StringToLineCommand(s string, args []string) LineCommand {
 		return &OpenPage{PageIndex: IVarsPage}
 	case "code":
 		return &OpenPage{PageIndex: ICodePage}
+	case "restart":
+		return &Restart{}
 	case "c", "continue":
 		return &Continue{}
 	case "n", "next":
@@ -419,4 +422,16 @@ func (cmd *SwitchGoroutines) run(view *View, app *tview.Application, client *rpc
 	log.Printf("Switched to goroutine %d.", res.Pid)
 
 	view.dbgMoveChan <- &DebuggerMove{res, sres}
+}
+
+type Restart struct {
+}
+
+func (cmd *Restart) run(view *View, app *tview.Application, client *rpc2.RPCClient) {
+	_, err := client.Restart(false)
+	if err != nil {
+		log.Printf("rpc error while restarting program: %s", err.Error())
+		return
+	}
+	view.SetBlocking(false)
 }

@@ -89,6 +89,7 @@ func (page *VarsPage) RenderVariables(args []api.Variable, locals []api.Variable
 
 	page.locals.ClearChildren()
 	page.args.ClearChildren()
+	page.returns.ClearChildren()
 
 	page.AddVars(page.locals, locals)
 	page.AddVars(page.args, args)
