@@ -5,6 +5,7 @@ import (
 	"dlvtui/nav"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -25,18 +26,35 @@ var defaultConfig = api.LoadConfig{
 
 // Read file from disk.
 func loadFile(path string, fileChan chan *nav.File) {
-	f, err := os.Open(path)
-	defer f.Close()
-	if err != nil {
-		log.Printf("Error loading file %s: %s", path, err)
-		return
+
+	var scanner *bufio.Scanner = nil
+	if gConfig.SyntaxHighlighter != "" {
+		commandArr := strings.Fields(gConfig.SyntaxHighlighter)
+		commandArr = append(commandArr, path)
+		cmd := exec.Command(commandArr[0], commandArr[1:]...)
+		pipe, _ := cmd.StdoutPipe()
+		cmd.Stderr = cmd.Stdout
+		scanner = bufio.NewScanner(pipe)
+		err := cmd.Start()
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	} else {
+
+		f, err := os.Open(path)
+		defer f.Close()
+		if err != nil {
+			log.Printf("Error loading file %s: %s", path, err)
+			return
+		}
+		scanner = bufio.NewScanner(f)
 	}
-	scanner := bufio.NewScanner(f)
+
 	buf := ""
 	lineIndex := 0
 	lineIndices := []int{0}
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := tview.TranslateANSI(scanner.Text())
 		buf += line + "\n"
 		lineIndex += len(line) + 1
 		lineIndices = append(lineIndices, lineIndex)

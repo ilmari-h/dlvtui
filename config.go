@@ -220,9 +220,10 @@ type Icons struct {
 }
 
 type Config struct {
-	Keys   Keys
-	Colors Colors
-	Icons  Icons
+	SyntaxHighlighter string
+	Keys              Keys
+	Colors            Colors
+	Icons             Icons
 }
 
 var gConfig Config
@@ -283,9 +284,10 @@ func NewConfig() Config {
 		IndExitError:   "⚐",
 	}
 	return Config{
-		Keys:   keyconf,
-		Colors: colorconf,
-		Icons:  iconconf,
+		SyntaxHighlighter: "",
+		Keys:              keyconf,
+		Colors:            colorconf,
+		Icons:             iconconf,
 	}
 }
 

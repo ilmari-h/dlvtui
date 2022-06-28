@@ -1,6 +1,7 @@
 # This is an example configuration with default values.
 # You should place your configuration in $XDG_CONFIG_HOME/dlvtui/config.yaml
 
+syntaxhighlighter: ""
 keys:
   breakpoint:       "b"
   pagetop:          "g"
