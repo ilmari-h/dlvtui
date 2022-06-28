@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"dlvtui/nav"
 
@@ -270,8 +271,10 @@ func (view *View) clearNotification() {
 	view.notificationLine.SetText("")
 	view.masterView.ResizeItem(view.notificationLine, 0, 0)
 	view.masterView.ResizeItem(view.pageView.GetWidget(), 0, 1)
-	log.Print("Clearing notif")
-	view.pageView.RefreshCodePage()
+	go func() {
+		time.Sleep(time.Second / 10)
+		view.pageView.RefreshCodePage()
+	}()
 }
 
 func (view *View) notifyProgramEnded(exitCode int) {
@@ -302,9 +305,8 @@ func (view *View) showNotification(msg string, error bool) {
 	lines := int(math.Ceil(float64(msgLen) / float64(boxWidth)))
 	_, _, _, linesText := view.pageView.pagesView.GetInnerRect()
 	view.masterView.ResizeItem(view.notificationLine, lines+1, 1)
-	view.masterView.ResizeItem(view.pageView.GetWidget(), linesText-lines+1, 1)
-	log.Print("Adding notif")
-	view.pageView.RefreshCodePage()
+	view.masterView.ResizeItem(view.pageView.GetWidget(), linesText-lines, 1)
+	view.pageView.ResizeCodePage(linesText - lines - 1)
 }
 
 func CreateTui(app *tview.Application, navState *nav.Nav, rpcClient *rpc2.RPCClient) View {

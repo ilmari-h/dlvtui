@@ -31,6 +31,10 @@ func (perfTextView *PerfTextView) ReRender() {
 	perfTextView.render(perfTextView.scroll, perfTextView.virtualLine, h)
 }
 
+func (perfTextView *PerfTextView) ReRenderWithHeight(height int) {
+	perfTextView.render(perfTextView.scroll, perfTextView.virtualLine, height)
+}
+
 func (perfTextView *PerfTextView) render(scroll int, line int, maxHeight int) {
 
 	// No text loaded, don't render.
@@ -46,6 +50,8 @@ func (perfTextView *PerfTextView) render(scroll int, line int, maxHeight int) {
 
 	perfTextView.lineColumn.Render(scroll+1, scroll+maxHeight, perfTextView.virtualLine)
 	perfTextView.SetText(perfTextView.fullText[firstLine:endIdx])
+	perfTextView.lineColumn.textView.ScrollToBeginning()
+	perfTextView.ScrollToBeginning()
 
 }
 
@@ -87,6 +93,7 @@ func (perfTextView *PerfTextView) JumpTo(line int) {
 }
 
 func (perfTextView *PerfTextView) SetTextP(text string, lineIndices []int) {
+
 	perfTextView.fullText = text
 	perfTextView.lineIndices = lineIndices
 	_, _, _, h := perfTextView.GetInnerRect()
@@ -99,7 +106,7 @@ func (perfTextView *PerfTextView) SetTextP(text string, lineIndices []int) {
 	} else {
 		strIndx = len(lineIndices) - 1
 	}
-	perfTextView.SetText(text[:strIndx])
+	perfTextView.SetText(perfTextView.fullText[:strIndx])
 }
 
 func (perfTextView *PerfTextView) SetLineColumn(column *LineColumn) {

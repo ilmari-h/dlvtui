@@ -75,6 +75,10 @@ func (pv *PageView) RefreshCodePage() {
 	pv.codePage.perfTextView.ReRender()
 }
 
+func (pv *PageView) ResizeCodePage(height int) {
+	pv.codePage.perfTextView.ReRenderWithHeight(height)
+}
+
 func (pv *PageView) RenderBreakpoints(bps []*nav.UiBreakpoint) {
 	if bps == nil {
 		return

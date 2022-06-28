@@ -22,7 +22,6 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 	textView := NewPerfTextView()
 
 	lineColumn := NewLineColumn(navState)
-	textView.SetLineColumn(lineColumn)
 	lineColumn.textView.
 		SetRegions(true).
 		SetDynamicColors(true).
@@ -31,6 +30,8 @@ func NewCodePage(app *tview.Application, navState *nav.Nav) *CodePage {
 		}).
 		SetBackgroundColor(tcell.ColorDefault)
 
+	textView.SetLineColumn(lineColumn)
+	textView.SetDynamicColors(true)
 	textView.SetBackgroundColor(tcell.ColorDefault)
 	textView.SetWrap(false)
 

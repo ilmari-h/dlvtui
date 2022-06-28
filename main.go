@@ -119,6 +119,7 @@ func init() {
 
 	log.SetLevel(log.InfoLevel)
 	file, err := os.OpenFile(os.ExpandEnv(logfile), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file.Truncate(0)
 	if err == nil {
 		log.SetOutput(file)
 	} else {
