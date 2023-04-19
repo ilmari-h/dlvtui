@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"dlvtui/nav"
+	"github.com/ilmari-h/dlvtui/nav"
 
 	"github.com/go-delve/delve/service/rpc2"
 	"github.com/rivo/tview"

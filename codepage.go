@@ -1,7 +1,7 @@
 package main
 
 import (
-	"dlvtui/nav"
+	"github.com/ilmari-h/dlvtui/nav"
 	"fmt"
 
 	"github.com/gdamore/tcell/v2"

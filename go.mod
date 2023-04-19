@@ -1,4 +1,4 @@
-module dlvtui
+module github.com/ilmari-h/dlvtui
 
 go 1.18
 

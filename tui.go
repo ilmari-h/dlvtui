@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"dlvtui/nav"
+	"github.com/ilmari-h/dlvtui/nav"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/go-delve/delve/service/api"

@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"dlvtui/nav"
+	"github.com/ilmari-h/dlvtui/nav"
 	"fmt"
 	"os"
 	"os/exec"
